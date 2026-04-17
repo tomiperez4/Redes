@@ -1,23 +1,20 @@
 import struct
-from src.lib.transport.datagram import *
+from src.lib.transport.datagrams.datagram import Datagram
 
 class DataDatagram(Datagram):
-    HEADER_FORMAT = "!B B H"  # type, seq_number, length
+    HEADER_FORMAT = "!B B B"  # type, seq_number
     HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
 
-    def __init__(self, seq, data):
-        self.type = TYPE_DATA
+    def __init__(self, seq, data, mf):
         self.seq = seq
         self.data = data
+        self.mf = mf
 
     def to_bytes(self):
-        length = len(self.data)
-
         header = struct.pack(
             self.HEADER_FORMAT,
-            self.type,
             self.seq,
-            length
+            self.mf
         )
 
         return header + self.data

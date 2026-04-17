@@ -1,5 +1,5 @@
 import queue
-from TPs.Redes.src.lib.datagrams.datagram import Datagram
+from src.lib.transport.datagrams.datagram import Datagram
 
 class ClientHandler:
     def __init__(self, socket):
@@ -8,4 +8,5 @@ class ClientHandler:
 
     def run(self):
         while True:
-            self.queue.get()
+            data = self.queue.get()
+            datagram = Datagram.from_bytes(data)
