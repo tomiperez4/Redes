@@ -13,33 +13,37 @@ class StopAndWait:
         self.seq = 0
         self.send_queue = queue.Queue()
 
-    def send_file(self, data, address, path):
+    def send_file(self, address, path):
         self.socket.settimeout(TIMEOUT)
-
         seq = 0
-        i = 0
-
         with open(path, "rb") as file:
             while True:
                 chunk = file.read(SEGMENT_SIZE)
 
                 if not chunk:
-                    break
-                pkt = DataDatagram(seq, chunk, 1 if i + SEGMENT_SIZE < len(data) else 0)
-                self.socket.sendto(pkt.to_bytes(), address)
+                    pkt = DataDatagram(seq, b"", 0)
+                    while True:
+                        self.socket.sendto(pkt.to_bytes(), address)
+                        try:
+                            raw, _ = self.socket.recvfrom(SEGMENT_SIZE)
+                            received = Datagram.from_bytes(raw)
 
-                try:
-                    raw, _ = self.socket.recvfrom(SEGMENT_SIZE)
-                    received = Datagram.from_bytes(raw)
+                            if isinstance(received, AckDatagram) and received.ack == seq:
+                                return
 
-                    if isinstance(received, AckDatagram) and received.ack == seq:
-                        break
-
-                except self.socket.timeout:
-                    continue
-
-                i += SEGMENT_SIZE
-                seq = 1 - seq
+                        except self.socket.timeout:
+                            continue
+                pkt = DataDatagram(seq, chunk, 1)
+                while True:
+                    self.socket.sendto(pkt.to_bytes(), address)
+                    try:
+                        raw, _ = self.socket.recvfrom(SEGMENT_SIZE)
+                        received = Datagram.from_bytes(raw)
+                        if isinstance(received, AckDatagram) and received.ack == seq:
+                            seq = 1 - seq
+                            break
+                    except self.socket.timeout:
+                        continue
 
     def receive_file(self, address, output_path):
         expected_seq = 0
