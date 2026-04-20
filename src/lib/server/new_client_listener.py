@@ -14,13 +14,18 @@ class NewClientListener(threading.Thread):
 
     def run(self):
         while True:
-            raw, address = self.socket.recvfrom(BUF_SIZE)
-            segment = Segment.from_bytes(raw)
-            if address not in self.clients:
-                if not isinstance(segment, HandshakeSegment):
+            try:
+                raw, address = self.socket.recvfrom(BUF_SIZE)
+                segment = Segment.from_bytes(raw)
+                if address in self.clients:
+                    self.clients[address].queue.put(segment)
                     continue
-                handshake_segment = HandshakeSegment.from_bytes(segment)
-                handler = ClientHandler(self.socket)
-                self.clients[address] = handler
-                handler.run()
-
+                if isinstance(segment, HandshakeSegment):
+                    handler = ClientHandler(
+                        self.socket, address[0], address[1], segment.type, segment.filename, segment.protocol
+                    )
+                    self.clients[address] = handler
+                    self.clients[address].queue.put(segment)
+                    handler.start()
+            except Exception as e:
+                print(e)

@@ -1,11 +1,14 @@
-class ReliableProtocol:
+from abc import abstractmethod, ABC
+
+
+class ReliableProtocol(ABC):
     def __init__(self, socket):
         self.socket = socket
 
     @abstractmethod
-    def send(self, address, path):
+    def send(self, address, path, queue):
         pass
 
     @abstractmethod
-    def receive(self, address, path):
+    def receive(self, address, path, queue):
         pass

@@ -1,8 +1,8 @@
 import queue
 
-from src.lib.transport.segments.ack_segment import AckDatagram
-from src.lib.transport.segments.data_segment import DataDatagram
-from src.lib.transport.segments.segment import Datagram
+from src.lib.transport.segments.ack_segment import AckSegment
+from src.lib.transport.segments.data_segment import DataSegment
+from src.lib.transport.segments.segment import Segment
 from src.lib.transport.rdt import ReliableProtocol
 
 SEGMENT_SIZE = 1024
@@ -10,11 +10,10 @@ TIMEOUT = 0.5
 
 class StopAndWait(ReliableProtocol):
     def __init__(self, socket):
-        self.super().__init__(socket)
+        super().__init__(socket)
         self.seq = 0
-        self.send_queue = queue.Queue()
 
-    def send(self, address, path):
+    def send(self, address, path, queue):
         self.socket.settimeout(TIMEOUT)
         seq = 0
         with open(path, "rb") as file:
@@ -26,8 +25,7 @@ class StopAndWait(ReliableProtocol):
                     while True:
                         self.socket.sendto(pkt.to_bytes(), address)
                         try:
-                            raw, _ = self.socket.recvfrom(SEGMENT_SIZE)
-                            received = Datagram.from_bytes(raw)
+                            received = queue.get()
 
                             if isinstance(received, AckDatagram) and received.ack == seq:
                                 return
@@ -46,13 +44,11 @@ class StopAndWait(ReliableProtocol):
                     except self.socket.timeout:
                         continue
 
-    def receive(self, address, output_path):
+    def receive(self, address, output_path, queue):
         expected_seq = 0
         with open(output_path, "wb") as output_file:
             while True:
-                raw, addr = self.socket.recvfrom(SEGMENT_SIZE)
-                packet = Datagram.from_bytes(raw)
-
+                packet = queue.get()
                 if isinstance(packet, DataDatagram):
                     if packet.seq == expected_seq:
                         data = packet.data
