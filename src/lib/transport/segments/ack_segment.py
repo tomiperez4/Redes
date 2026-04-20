@@ -1,7 +1,7 @@
 import struct
-from src.lib.transport.datagrams.datagram import Datagram
+from src.lib.transport.segments.segment import Segment
 
-class AckDatagram(Datagram):
+class AckSegment(Segment):
     FORMAT = "!B B"  # type, ack
     SIZE = struct.calcsize(FORMAT)
 
@@ -17,8 +17,11 @@ class AckDatagram(Datagram):
     @staticmethod
     def from_bytes(raw):
         type_, ack = struct.unpack(
-            AckDatagram.FORMAT,
-            raw[:AckDatagram.SIZE]
+            AckSegment.FORMAT,
+            raw[:AckSegment.SIZE]
         )
+        return AckSegment(ack)
 
-        return AckDatagram(ack)
+    @staticmethod
+    def is_ack_segment():
+        return True
