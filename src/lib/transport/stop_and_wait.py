@@ -1,19 +1,20 @@
 import queue
 
-from src.lib.transport.datagrams.ack_datagram import AckDatagram
-from src.lib.transport.datagrams.data_datagram import DataDatagram
-from src.lib.transport.datagrams.datagram import Datagram
+from src.lib.transport.segments.ack_segment import AckDatagram
+from src.lib.transport.segments.data_segment import DataDatagram
+from src.lib.transport.segments.segment import Datagram
+from src.lib.transport.rdt import ReliableProtocol
 
 SEGMENT_SIZE = 1024
 TIMEOUT = 0.5
 
-class StopAndWait:
+class StopAndWait(ReliableProtocol):
     def __init__(self, socket):
-        self.socket = socket
+        self.super().__init__(socket)
         self.seq = 0
         self.send_queue = queue.Queue()
 
-    def send_file(self, address, path):
+    def send(self, address, path):
         self.socket.settimeout(TIMEOUT)
         seq = 0
         with open(path, "rb") as file:
@@ -45,7 +46,7 @@ class StopAndWait:
                     except self.socket.timeout:
                         continue
 
-    def receive_file(self, address, output_path):
+    def receive(self, address, output_path):
         expected_seq = 0
         with open(output_path, "wb") as output_file:
             while True:

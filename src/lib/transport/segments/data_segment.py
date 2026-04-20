@@ -14,6 +14,7 @@ class DataSegment(Segment):
     def to_bytes(self):
         header = struct.pack(
             self.HEADER_FORMAT,
+            TYPE_DATA,
             self.seq,
             self.mf
         )

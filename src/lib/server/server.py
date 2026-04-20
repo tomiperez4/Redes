@@ -1,6 +1,7 @@
 import socket
 from concurrent.futures import ThreadPoolExecutor
-from src.lib.client_handler import ClientHandler
+from src.lib.server.new_client_listener import NewClientListener
+
 
 class Server:
     def __init__(self, host, port, workers):
@@ -11,10 +12,4 @@ class Server:
 
     def start(self):
         self.socket.bind(self.address)
-        while True:
-            data, address = self.socket.recvfrom(1024)
-            if address not in self.clients:
-                handler = ClientHandler(self.socket)
-                self.clients[address] = handler
-                self.executor.submit(handler.run)
-            self.clients[address].queue.put(data)
+        NewClientHandler = NewClientListener(self.clients)
