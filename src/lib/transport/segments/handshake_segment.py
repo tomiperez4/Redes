@@ -31,7 +31,7 @@ class HandshakeSegment(Segment):
             self.host
         )
         if self.filename is not None:
-            return header + self.filename
+            return header + self.filename.encode('utf-8')
         return header
 
     @staticmethod

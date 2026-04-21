@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
 
-from src.lib.transport.segments.ack_segment import AckSegment
-from src.lib.transport.segments.data_segment import DataSegment
-from src.lib.transport.segments.handshake_segment import HandshakeSegment
+# ELIMINADO: El import de HandshakeSegment de aquí arriba
 
 TYPE_ACK = 0
 TYPE_DATA = 1
@@ -16,6 +14,14 @@ class Segment(ABC):
 
     @staticmethod
     def from_bytes(data):
+        # Todos los imports específicos se hacen acá adentro (Local Imports)
+        from src.lib.transport.segments.ack_segment import AckSegment
+        from src.lib.transport.segments.data_segment import DataSegment
+        from src.lib.transport.segments.handshake_segment import HandshakeSegment
+
+        if not data:
+            raise ValueError("Empty data")
+
         dtype = data[0]
         if dtype == TYPE_ACK:
             return AckSegment.from_bytes(data)
@@ -24,16 +30,14 @@ class Segment(ABC):
         elif dtype == TYPE_HANDSHAKE:
             return HandshakeSegment.from_bytes(data)
         else:
-            raise ValueError("Unknown segment")
+            raise ValueError(f"Unknown segment type: {dtype}")
 
-    @staticmethod
-    def is_data_segment():
+    # Métodos de ayuda
+    def is_data_segment(self):
         return False
 
-    @staticmethod
-    def is_ack_segment():
+    def is_ack_segment(self):
         return False
 
-    @staticmethod
-    def is_handshake_segment():
+    def is_handshake_segment(self):
         return False

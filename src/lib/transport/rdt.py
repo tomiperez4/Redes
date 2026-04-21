@@ -6,9 +6,9 @@ class ReliableProtocol(ABC):
         self.socket = socket
 
     @abstractmethod
-    def send(self, address, path, queue):
+    def send(self, address, path):
         pass
 
     @abstractmethod
-    def receive(self, address, path, queue):
+    def receive(self, address, path):
         pass

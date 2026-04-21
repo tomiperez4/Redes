@@ -1,6 +1,8 @@
 import struct
 from src.lib.transport.segments.segment import Segment
 
+TYPE_ACK = 0
+
 class AckSegment(Segment):
     FORMAT = "!B B"  # type, ack
     SIZE = struct.calcsize(FORMAT)
@@ -11,6 +13,7 @@ class AckSegment(Segment):
     def to_bytes(self):
         return struct.pack(
             self.FORMAT,
+            TYPE_ACK,
             self.ack
         )
 

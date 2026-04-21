@@ -15,5 +15,5 @@ class Server:
 
     def start(self):
         self.socket.bind(self.address)
-        listener = NewClientListener(self.clients)
+        listener = NewClientListener(self.socket)
         listener.start()
