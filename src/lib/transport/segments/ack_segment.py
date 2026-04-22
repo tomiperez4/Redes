@@ -25,6 +25,5 @@ class AckSegment(Segment):
         )
         return AckSegment(ack)
 
-    @staticmethod
-    def is_ack_segment():
+    def is_ack_segment(self):
         return True

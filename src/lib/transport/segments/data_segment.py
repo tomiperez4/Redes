@@ -32,6 +32,5 @@ class DataSegment(Segment):
 
         return DataSegment(seq, payload, mf)
 
-    @staticmethod
-    def is_data_segment():
+    def is_data_segment(self):
         return True

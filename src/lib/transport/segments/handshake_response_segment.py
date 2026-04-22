@@ -34,3 +34,6 @@ class HandshakeResponseSegment(Segment):
 
     def is_handshake_response_segment(self):
         return True
+
+    def get_port(self):
+        return self.port
