@@ -16,9 +16,9 @@ def download(server_addr, server_port, dst_path, filename, protocol_str):
 
     # No se si port y host son del client o server
     h_packet = HandshakeSegment.create_client_handshake(
-        filename=filename,
-        protocol=protocol_id,
-        type=1, # 1 = DOWNLOAD
+        filename = filename,
+        protocol = protocol_id,
+        type = 1, # 1 = DOWNLOAD
         port=port_int,
         host=host_bytes,
     )
