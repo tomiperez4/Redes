@@ -1,11 +1,11 @@
 import socket
 
 from lib.server.client_handler import CLIENT_TYPE_DOWNLOAD
-from src.lib.application.client_parser import ClientParser
-from src.lib.transport.stop_and_wait import StopAndWait
-from src.lib.transport.segments.segment import Segment
-from src.lib.transport.segments.handshake_request_segment import HandshakeRequestSegment
-from src.lib.transport.segments.constants import *
+from lib.application.client_parser import ClientParser
+from lib.transport.stop_and_wait import StopAndWait
+from lib.transport.segments.segment import Segment
+from lib.transport.segments.handshake_request_segment import HandshakeRequestSegment
+from lib.transport.segments.constants import *
 
 # Para probar, dsps hay q modularizar y crear clase client?
 def download(server_addr, server_port, dst_path, filename, protocol_str):

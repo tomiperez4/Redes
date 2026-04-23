@@ -1,8 +1,6 @@
 import os
-
 from lib.application.server_parser import ServerParser
 from lib.server.server import Server
-
 
 def main():
     parser = ServerParser()
@@ -17,7 +15,8 @@ def main():
         except OSError as error:
             print(f"[ERROR] Failed to create storage directory path: {error}")
             return
-    server = Server(host=args.host, port=args.port, workers= 5, storage=storage_path, verbose=args.verbose, quiet=args.quiet)
+    server = Server(host=args.host, port=args.port, workers= 5,
+                    storage=storage_path, verbose=args.verbose, quiet=args.quiet)
 
     try:
         server.start()

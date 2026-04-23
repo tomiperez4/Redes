@@ -1,5 +1,5 @@
 import unittest
-from src.lib.transport.segments.ack_segment import AckSegment
+from lib.transport.segments.ack_segment import AckSegment
 
 
 class TestAckSegment(unittest.TestCase):

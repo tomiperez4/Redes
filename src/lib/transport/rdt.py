@@ -1,6 +1,5 @@
 from abc import abstractmethod, ABC
 
-
 class ReliableProtocol(ABC):
     def __init__(self, socket):
         self.socket = socket

@@ -1,0 +1,9 @@
+#!/usr/bin/env python3
+from download import download
+from lib.application.client_parser import ClientParser
+
+if __name__ == "__main__":
+    parser = ClientParser(is_upload=False)
+    args = parser.parse()
+
+    download(args.host, args.port, args.dst, args.name, args.protocol)

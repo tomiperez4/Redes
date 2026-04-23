@@ -1,5 +1,5 @@
 import unittest
-from src.lib.transport.segments.data_segment import DataSegment
+from lib.transport.segments.data_segment import DataSegment
 
 class TestDataSegment(unittest.TestCase):
 

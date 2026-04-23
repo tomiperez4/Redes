@@ -1,8 +1,7 @@
 import threading
 
-from src.lib.server.client_handler import ClientHandler
-from src.lib.transport.segments.segment import Segment
-from src.lib.transport.segments.handshake_segment import HandshakeSegment
+from lib.server.client_handler import ClientHandler
+from lib.transport.segments.segment import Segment
 
 BUF_SIZE = 1024
 MAX_CLIENTS = 10
@@ -20,7 +19,7 @@ class NewClientListener(threading.Thread):
                 raw, address = self.socket.recvfrom(BUF_SIZE)
                 segment = Segment.from_bytes(raw)
 
-                if self.clients_count >= MAX_CLIENTS or not isinstance(segment, HandshakeSegment):
+                if self.clients_count >= MAX_CLIENTS or not segment.is_handshake_request_segment():
                     print("Error")
                     continue
 
@@ -28,15 +27,15 @@ class NewClientListener(threading.Thread):
                 handler = ClientHandler(
                     address[0],
                     address[1],
-                    segment.type,
-                    segment.filename.decode('utf-8'),
+                    segment.operation,
+                    segment.filename,
                     segment.protocol,
                     self.client_finished
                 )
                 handler.start()
 
-            except Exception as e:
-                print(e)
+            except Exception as error:
+                print(error)
 
     def client_finished(self):
         with self.lock:

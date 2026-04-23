@@ -1,5 +1,5 @@
 import struct
-from src.lib.transport.segments.segment import Segment
+from lib.transport.segments.segment import Segment
 
 TYPE_ACK = 0
 

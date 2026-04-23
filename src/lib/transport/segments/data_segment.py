@@ -1,5 +1,5 @@
 import struct
-from src.lib.transport.segments.segment import Segment, TYPE_DATA
+from lib.transport.segments.segment import Segment, TYPE_DATA
 
 
 class DataSegment(Segment):

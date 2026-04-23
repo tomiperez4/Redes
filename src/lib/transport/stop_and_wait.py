@@ -1,9 +1,7 @@
-import queue
-
-from src.lib.transport.segments.ack_segment import AckSegment
-from src.lib.transport.segments.data_segment import DataSegment
-from src.lib.transport.segments.segment import Segment
-from src.lib.transport.rdt import ReliableProtocol
+from lib.transport.segments.ack_segment import AckSegment
+from lib.transport.segments.data_segment import DataSegment
+from lib.transport.segments.segment import Segment
+from lib.transport.rdt import ReliableProtocol
 
 SEGMENT_SIZE = 1024
 TIMEOUT = 0.5
@@ -47,7 +45,7 @@ class StopAndWait(ReliableProtocol):
 
     def receive(self, address, output_path):
         expected_seq = 0
-        with open('./storage/hola.txt', "wb") as output_file:
+        with open(output_path, "wb") as output_file:
             while True:
                 raw, _ = self.socket.recvfrom(SEGMENT_SIZE)
                 packet = Segment.from_bytes(raw)

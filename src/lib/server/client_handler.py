@@ -1,9 +1,8 @@
-import queue
 import threading
 import socket
 
-from src.lib.transport.segments.ack_segment import AckSegment
-from src.lib.transport.stop_and_wait import StopAndWait
+from lib.transport.segments.handshake_response_segment import HandshakeResponseSegment
+from lib.transport.stop_and_wait import StopAndWait
 
 # Constantes generales
 CLIENT_TYPE_UPLOAD = 0
@@ -34,10 +33,10 @@ class ClientHandler(threading.Thread):
         """Initializes handler and runs the specified command"""
         address = (self.client_host, self.client_port)
 
-        # Puede ser HandshakeSegment
-        pkt = AckSegment(ack=0)
+        port = self.client_socket.getsockname()[1]
+        response = HandshakeResponseSegment(port)
 
-        self.client_socket.sendto(pkt.to_bytes(), address)
+        self.client_socket.sendto(response.to_bytes(), address)
 
         try:
             if self.client_type == CLIENT_TYPE_UPLOAD:

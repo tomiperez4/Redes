@@ -1,6 +1,6 @@
 import socket
 from concurrent.futures import ThreadPoolExecutor
-from src.lib.server.new_client_listener import NewClientListener
+from lib.server.new_client_listener import NewClientListener
 
 
 class Server:
