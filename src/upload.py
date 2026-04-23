@@ -28,9 +28,9 @@ def upload(server_addr, server_port, src_path, filename, protocol_str):
     try:
         skt.sendto(h_packet.to_bytes(), (server_addr, server_port))
 
-        raw_data, _ = skt.recvfrom(SKT_BUFFER_SIZE)
+        raw_data, new_sv_addr = skt.recvfrom(SKT_BUFFER_SIZE)
         response = Segment.from_bytes(raw_data)
-        if not response.is_handshake_response_segment():
+        if not response.is_handshake_response_segment() or new_sv_addr[1] != response.get_port():
             print("Respuesta inválida del servidor")
             return
         handler_address = (server_addr, response.get_port())

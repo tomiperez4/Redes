@@ -29,7 +29,7 @@ class NewClientListener(threading.Thread):
                     self.log.error("Client limit reached")
                     continue
                 if not segment.is_handshake_request_segment():
-                    self.log.error("Invalid segment (not handshake)")
+                    self.log.error("Expected handshake request segment")
                     continue
 
                 self.clients_count += 1
@@ -41,7 +41,9 @@ class NewClientListener(threading.Thread):
                     segment.operation,
                     segment.filename,
                     segment.protocol,
-                    self.client_finished
+                    self.client_finished,
+                    self.verbose,
+                    self.quiet
                 )
                 handler.start()
 
