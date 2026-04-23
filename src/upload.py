@@ -7,7 +7,7 @@ from lib.transport.segments.segment import Segment
 from lib.transport.segments.handshake_request_segment import HandshakeRequestSegment
 from lib.transport.segments.constants import *
 
-def upload(server_addr, server_port, src_path, filename, protocol_str):
+def upload(server_addr, server_port, src_path, verbose, quiet, filename, protocol_str):
     skt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     skt.settimeout(SKT_TIMEOUT)
 
@@ -36,7 +36,7 @@ def upload(server_addr, server_port, src_path, filename, protocol_str):
         handler_address = (server_addr, response.get_port())
 
         if protocol_id == SW_PROTOCOL_ID:
-            rdt = StopAndWait(skt)
+            rdt = StopAndWait(skt, verbose, quiet)
             rdt.send(handler_address, src_path)
 
     except socket.timeout:
@@ -45,9 +45,3 @@ def upload(server_addr, server_port, src_path, filename, protocol_str):
         print(f"Error inesperado: {error}")
     finally:
         skt.close()
-
-if __name__ == "__main__":
-    parser = ClientParser(is_upload=True)
-    args = parser.parse()
-
-    upload(args.host, args.port, args.src, args.name, args.protocol)

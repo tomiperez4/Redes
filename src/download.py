@@ -8,7 +8,7 @@ from lib.transport.segments.handshake_request_segment import HandshakeRequestSeg
 from lib.transport.segments.constants import *
 
 # Para probar, dsps hay q modularizar y crear clase client?
-def download(server_addr, server_port, dst_path, filename, protocol_str):
+def download(server_addr, server_port, verbose, quiet, dst_path, filename, protocol_str):
     skt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     skt.settimeout(SKT_TIMEOUT)
 
@@ -39,7 +39,7 @@ def download(server_addr, server_port, dst_path, filename, protocol_str):
         handler_address = (server_addr, response.get_port())
 
         if protocol_id == SW_PROTOCOL_ID: # Stop & Wait dsps lo cambio
-            rdt = StopAndWait(skt)
+            rdt = StopAndWait(skt, verbose, quiet)
             rdt.receive(handler_address, dst_path)
 
     except socket.timeout:
@@ -48,9 +48,3 @@ def download(server_addr, server_port, dst_path, filename, protocol_str):
         print(f"Error inesperado: {error}")
     finally:
         skt.close()
-
-if __name__ == "__main__":
-    parser = ClientParser(is_upload=False)
-    args = parser.parse()
-
-    download(args.host, args.port, args.dst, args.name, args.protocol)

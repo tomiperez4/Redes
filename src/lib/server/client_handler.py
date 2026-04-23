@@ -21,7 +21,7 @@ class ClientHandler(threading.Thread):
         self.client_port = client_port
         self.client_type = client_type
         self.filename = "./storage/" + filename # cambiarlo
-        self.protocol = StopAndWait(self.client_socket) # Dsps lo cambiamos cuando este GoBackN
+        self.protocol = StopAndWait(self.client_socket, verbose, quiet) # Dsps lo cambiamos cuando este GoBackN
         self.on_finish = on_finish
         self.verbose = verbose
         self.quiet = quiet
