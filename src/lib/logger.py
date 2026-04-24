@@ -10,7 +10,7 @@ class Logger:
             self.verbose = False
 
     @staticmethod
-    def _write_file(message):
+    def write_file(message):
         with open(DEFAULT_LOGFILE, "a") as f:
             f.write(message + "\n")
 
@@ -18,15 +18,15 @@ class Logger:
         msg = f"[DEBUG] {self.prefix} - {message}"
         if self.verbose:
             print(msg)
-        self._write_file(msg)
+        self.write_file(msg)
 
     def info(self, message):
         msg = f"[INFO] {self.prefix} - {message}"
-        if self.verbose:
+        if not self.quiet:
             print(msg)
-        self._write_file(msg)
+        self.write_file(msg)
 
     def error(self, message):
         msg = f"[ERROR] {self.prefix} - {message}"
         print(msg)
-        self._write_file(msg)
+        self.write_file(msg)
