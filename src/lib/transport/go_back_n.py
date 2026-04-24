@@ -1,5 +1,14 @@
+import socket as socket_module
 from lib.logger import Logger
 from lib.transport.rdt import ReliableProtocol
+from lib.transport.segments.data_segment import DataSegment
+from lib.transport.segments.segment import Segment
+from lib.transport.segments.ack_segment import AckSegment
+
+SEGMENT_SIZE = 1024
+MAX_PACKET_SIZE = 1027
+WINDOW_SIZE = 10
+TIMEOUT = 2.0
 
 class GoBackN(ReliableProtocol):
     def __init__(self, socket, verbose, quiet):
@@ -8,68 +17,63 @@ class GoBackN(ReliableProtocol):
         self.log = Logger(socket, verbose, quiet)
 
     def send(self, address, path):
-        window_size = 5
         base = 0
         next_seq_num = 0
-        packets = self._get_all_packets(path)  # Dividir archivo en segmentos de datos
+        seq = 0
+        packets = []
+
+        with open(path, "rb") as f:
+            while True:
+                chunk = f.read(SEGMENT_SIZE)
+                if not chunk:
+                    break
+                packets.append(DataSegment(seq, chunk, 1))
+                seq += 1
+
+        packets.append(DataSegment(seq, b"", 0))
         total_packets = len(packets)
 
         while base < total_packets:
-            # 1. Enviar paquetes mientras la ventana lo permita
-            while next_seq_num < base + window_size and next_seq_num < total_packets:
+            while next_seq_num < base + WINDOW_SIZE and next_seq_num < total_packets:
                 self.socket.sendto(packets[next_seq_num].to_bytes(), address)
                 if base == next_seq_num:
-                    self.socket.settimeout(2.0)  # Iniciar timer para el primer paquete
+                    self.socket.settimeout(TIMEOUT)
                 next_seq_num += 1
 
             try:
-                # 2. Esperar ACKs
-                data, addr = self.socket.recvfrom(1024)
+                data, addr = self.socket.recvfrom(MAX_PACKET_SIZE)
                 ack_pkt = Segment.from_bytes(data)
 
-                if ack_pkt.is_ack_segment():
-                    # ACKs en GBN son acumulativos
-                    # Si recibo ACK 5, significa que el 0,1,2,3 y 4 llegaron bien
-                    if ack_pkt.ack >= base:
-                        base = ack_pkt.ack + 1
-                        if base == next_seq_num:
-                            self.socket.settimeout(None)  # Ventana vacía, apago timer
-                        else:
-                            self.socket.settimeout(2.0)  # Reinicio timer para el nuevo base
+                if ack_pkt.is_ack_segment() and ack_pkt.ack >= base:
+                    base = ack_pkt.ack + 1
+                    if base == next_seq_num:
+                        self.socket.settimeout(None)
+                    else:
+                        self.socket.settimeout(TIMEOUT)
 
-            except socket.timeout:
-                # 3. REINTENTO: Si hay timeout, vuelvo a enviar TODO desde la base
-                self.socket.settimeout(2.0)
-                for i in range(base, next_seq_num):
-                    self.socket.sendto(packets[i].to_bytes(), address)
+            except socket_module.timeout:
+                next_seq_num = base
 
     def receive(self, address, output_path):
         expected_seq_num = 0
         with open(output_path, "wb") as f:
             while True:
                 try:
-                    data, addr = self.socket.recvfrom(1024)
+                    data, addr = self.socket.recvfrom(MAX_PACKET_SIZE)
                     segment = Segment.from_bytes(data)
 
                     if segment.is_data_segment():
                         if segment.seq_num == expected_seq_num:
-                            # Llegó el que esperaba: lo guardo y pido el siguiente
                             f.write(segment.data)
                             ack = AckSegment(expected_seq_num)
                             self.socket.sendto(ack.to_bytes(), addr)
                             expected_seq_num += 1
 
-                            if segment.is_last:  # Flag para saber si terminó el archivo
+                            if segment.mf == 0:
                                 break
                         else:
-                            # Llegó uno desordenado: lo descarto y mando ACK del último bien recibido
-                            # (O no mando nada, pero el ACK acumulativo ayuda al servidor)
                             if expected_seq_num > 0:
-                                ack = AckSegment(expected_seq_num - 1)
+                                ack = AckSegment(expected_seq_num - 1) 
                                 self.socket.sendto(ack.to_bytes(), addr)
                 except Exception:
                     break
-
-    def 
-def main():
-    pass

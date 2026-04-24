@@ -3,9 +3,11 @@ from lib.transport.segments.data_segment import DataSegment
 from lib.transport.segments.segment import Segment
 from lib.transport.rdt import ReliableProtocol
 from lib.logger import Logger
+import socket as socket_module
 
 SEGMENT_SIZE = 1024
-TIMEOUT = 0.5
+MAX_PACKET_SIZE = SEGMENT_SIZE + DataSegment.HEADER_SIZE
+TIMEOUT = 0.1
 
 # Modularizar, agregar retries
 class StopAndWait(ReliableProtocol):
@@ -27,14 +29,14 @@ class StopAndWait(ReliableProtocol):
                         self.socket.sendto(pkt.to_bytes(), address)
                         self.log.info("End of file segment sent")
                         try:
-                            raw, _ = self.socket.recvfrom(SEGMENT_SIZE)
+                            raw, _ = self.socket.recvfrom(MAX_PACKET_SIZE)
                             received = Segment.from_bytes(raw)
 
                             if isinstance(received, AckSegment) and received.ack == seq:
                                 self.log.info("Received confirmation ACK segment. End conn")
                                 return
 
-                        except self.socket.timeout:
+                        except socket_module.timeout:
                             self.log.error("Timeout while waiting for ACK segment. Retry")
                             continue
                 pkt = DataSegment(seq, chunk, 1)
@@ -42,14 +44,14 @@ class StopAndWait(ReliableProtocol):
                     self.socket.sendto(pkt.to_bytes(), address)
                     self.log.info("Data segment sent")
                     try:
-                        raw, _ = self.socket.recvfrom(SEGMENT_SIZE)
+                        raw, _ = self.socket.recvfrom(MAX_PACKET_SIZE)
                         received = Segment.from_bytes(raw)
                         if isinstance(received, AckSegment) and received.ack == seq:
                             self.log.info("Received ACK segment. Equals expected")
                             seq = 1 - seq
                             break
                         self.log.debug("Received ACK segment. Does not equals expected")
-                    except self.socket.timeout:
+                    except socket_module.timeout:
                         self.log.error("Timeout while waiting for ACK segment. Retry")
                         continue
 
@@ -57,7 +59,7 @@ class StopAndWait(ReliableProtocol):
         expected_seq = 0
         with open(output_path, "wb") as output_file:
             while True:
-                raw, _ = self.socket.recvfrom(SEGMENT_SIZE)
+                raw, _ = self.socket.recvfrom(MAX_PACKET_SIZE)
                 packet = Segment.from_bytes(raw)
 
                 if not isinstance(packet, DataSegment):
