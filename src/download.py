@@ -3,12 +3,13 @@ import socket
 from lib.server.client_handler import CLIENT_TYPE_DOWNLOAD
 from lib.application.client_parser import ClientParser
 from lib.transport.stop_and_wait import StopAndWait
+from lib.transport.go_back_n import GoBackN
 from lib.transport.segments.segment import Segment
 from lib.transport.segments.handshake_request_segment import HandshakeRequestSegment
 from lib.transport.segments.constants import *
 
 # Para probar, dsps hay q modularizar y crear clase client?
-def download(server_addr, server_port, verbose, quiet, dst_path, filename, protocol_str):
+def download(server_addr, server_port, dst_path, verbose, quiet, filename, protocol_str):
     skt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     skt.settimeout(SKT_TIMEOUT)
 
@@ -38,9 +39,12 @@ def download(server_addr, server_port, verbose, quiet, dst_path, filename, proto
 
         handler_address = (server_addr, response.get_port())
 
-        if protocol_id == SW_PROTOCOL_ID: # Stop & Wait dsps lo cambio
+        if protocol_id == SW_PROTOCOL_ID:
             rdt = StopAndWait(skt, verbose, quiet)
-            rdt.receive(handler_address, dst_path)
+        else:
+            rdt = GoBackN(skt, verbose, quiet)
+
+        rdt.receive(handler_address, dst_path)
 
     except socket.timeout:
         print("El servidor no responde al handshake.")
@@ -48,3 +52,10 @@ def download(server_addr, server_port, verbose, quiet, dst_path, filename, proto
         print(f"Error inesperado: {error}")
     finally:
         skt.close()
+
+
+if __name__ == "__main__":
+    parser = ClientParser(is_upload=False)
+    args = parser.parse()
+
+    download(args.host, args.port, args.dst, args.verbose, args.quiet, args.name, args.protocol)

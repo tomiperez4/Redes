@@ -6,4 +6,4 @@ if __name__ == "__main__":
     parser = ClientParser(is_upload=False)
     args = parser.parse()
 
-    download(args.host, args.port, args.src, args.verbose, args.quiet, args.name, args.protocol)
+    download(args.host, args.port, args.dst, args.verbose, args.quiet, args.name, args.protocol)

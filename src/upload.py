@@ -2,6 +2,7 @@ import socket
 
 from lib.server.client_handler import CLIENT_TYPE_UPLOAD
 from lib.application.client_parser import ClientParser
+from lib.transport.go_back_n import GoBackN
 from lib.transport.stop_and_wait import StopAndWait
 from lib.transport.segments.segment import Segment
 from lib.transport.segments.handshake_request_segment import HandshakeRequestSegment
@@ -37,7 +38,10 @@ def upload(server_addr, server_port, src_path, verbose, quiet, filename, protoco
 
         if protocol_id == SW_PROTOCOL_ID:
             rdt = StopAndWait(skt, verbose, quiet)
-            rdt.send(handler_address, src_path)
+        else:
+            rdt = GoBackN(skt, verbose, quiet)
+
+        rdt.send(handler_address, src_path)
 
     except socket.timeout:
         print("El servidor no responde al handshake.")
@@ -45,3 +49,9 @@ def upload(server_addr, server_port, src_path, verbose, quiet, filename, protoco
         print(f"Error inesperado: {error}")
     finally:
         skt.close()
+
+if __name__ == "__main__":
+    parser = ClientParser(is_upload=True)
+    args = parser.parse()
+
+    upload(args.host, args.port, args.src, args.verbose, args.quiet, args.name, args.protocol)

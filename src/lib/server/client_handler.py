@@ -3,6 +3,7 @@ import socket
 
 from lib.transport.segments.handshake_response_segment import HandshakeResponseSegment
 from lib.transport.stop_and_wait import StopAndWait
+from lib.transport.go_back_n import GoBackN
 from lib.logger import Logger
 
 # Constantes generales
@@ -26,12 +27,11 @@ class ClientHandler(threading.Thread):
         self.verbose = verbose
         self.quiet = quiet
         self.log = Logger("CLIENT-HANDLER", verbose, quiet)
-        #self.queue = queue.Queue()
 
         if protocol_id == PROTOCOL_STOP_AND_WAIT:
             self.protocol = StopAndWait(self.client_socket, verbose, quiet)
-        #else:
-            #self.protocol = GoBackN(self.client_socket)
+        else:
+            self.protocol = GoBackN(self.client_socket, verbose, quiet)
 
     def run(self):
         """Initializes handler and runs the specified command"""
