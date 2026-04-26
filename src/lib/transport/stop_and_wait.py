@@ -9,6 +9,7 @@ SEGMENT_SIZE = 1024
 MAX_PACKET_SIZE = SEGMENT_SIZE + DataSegment.HEADER_SIZE
 TIMEOUT = 0.1
 
+
 # Modularizar, agregar retries
 class StopAndWait(ReliableProtocol):
     def __init__(self, socket, verbose, quiet):
