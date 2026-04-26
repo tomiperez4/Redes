@@ -4,7 +4,7 @@ TYPE_ACK = 0
 TYPE_DATA = 1
 TYPE_HANDSHAKE_REQUEST = 2
 TYPE_HANDSHAKE_RESPONSE = 3
-
+TYPE_HANDSHAKE_READY = 4
 
 class Segment(ABC):
     @abstractmethod
@@ -17,6 +17,7 @@ class Segment(ABC):
         from lib.transport.segments.data_segment import DataSegment
         from lib.transport.segments.handshake_request_segment import HandshakeRequestSegment
         from lib.transport.segments.handshake_response_segment import HandshakeResponseSegment
+        from lib.transport.segments.handshake_ready_segment import HandshakeReadySegment
 
         if not data:
             raise ValueError("Empty data")
@@ -35,6 +36,9 @@ class Segment(ABC):
         elif dtype == TYPE_HANDSHAKE_RESPONSE:
             return HandshakeResponseSegment.from_bytes(data)
 
+        elif dtype == TYPE_HANDSHAKE_READY:
+            return HandshakeReadySegment.from_bytes(data)
+
         else:
             raise ValueError(f"Unknown segment type: {dtype}")
 
@@ -49,4 +53,7 @@ class Segment(ABC):
         return False
 
     def is_handshake_request_segment(self):
+        return False
+
+    def is_handshake_ready_segment(self):
         return False

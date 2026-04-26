@@ -1,5 +1,6 @@
 from lib.transport.segments.ack_segment import AckSegment
 from lib.transport.segments.data_segment import DataSegment
+from lib.transport.segments.handshake_ready_segment import HandshakeReadySegment
 from lib.transport.segments.segment import Segment
 from lib.transport.rdt import ReliableProtocol
 from lib.logger import Logger
@@ -82,16 +83,25 @@ class StopAndWait(ReliableProtocol):
                         continue
 
     def receive(self, address, output_path):
+        handshake_done = False
         expected_seq = 0
         with open(output_path, "wb") as output_file:
             while True:
-                raw, _ = self.socket.recvfrom(MAX_PACKET_SIZE)
+                raw, addr = self.socket.recvfrom(MAX_PACKET_SIZE)
                 packet = Segment.from_bytes(raw)
 
-                if not isinstance(packet, DataSegment):
-                    self.log.error("Unexpected data segment. Retry")
+                if packet.is_handshake_response_segment():
+                    if not handshake_done and address == addr:
+                        self.log.info("Duplicated handshake response segment received. Re-sending READY segment")
+                        ready_pkt = HandshakeReadySegment()
+                        self.socket.sendto(ready_pkt.to_bytes(), address)
                     continue
 
+                if not packet.is_data_segment():
+                    self.log.error("Unexpected segment. Retry")
+                    continue
+
+                handshake_done = True
                 self.log.info("Data segment received")
                 if packet.seq == expected_seq:
                     self.log.info("Packets sequence numbers match")

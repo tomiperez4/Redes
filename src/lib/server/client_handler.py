@@ -2,6 +2,7 @@ import threading
 import socket
 
 from lib.transport.segments.handshake_response_segment import HandshakeResponseSegment
+from lib.transport.segments.segment import Segment
 from lib.transport.stop_and_wait import StopAndWait
 from lib.transport.go_back_n import GoBackN
 from lib.logger import Logger
@@ -12,6 +13,8 @@ CLIENT_TYPE_DOWNLOAD = 1
 
 PROTOCOL_STOP_AND_WAIT = 0
 PROTOCOL_GO_BACK_N = 1
+
+BUF_SIZE = 1024
 
 class ClientHandler(threading.Thread):
     def __init__(self, client_host, client_port, client_type, filename, protocol_id, on_finish, verbose, quiet):
@@ -60,4 +63,17 @@ class ClientHandler(threading.Thread):
 
     def handle_download(self, address):
         """Handles the DOWNLOAD operation"""
+        self.client_socket.settimeout(0.5)
+        while True:
+            try:
+                raw, _ = self.client_socket.recvfrom(BUF_SIZE)
+                segment = Segment.from_bytes(raw)
+
+                if segment.is_handshake_ready_segment():
+                    break
+
+            except socket.timeout:
+                self.log.debug("Ready segment not received from client. Timeout. Re-sending handshake response segment")
+
+
         self.protocol.send(address, self.filename)

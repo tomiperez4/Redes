@@ -4,6 +4,7 @@ import time
 
 from lib.transport.segments.ack_segment import AckSegment
 from lib.transport.segments.data_segment import DataSegment
+from lib.transport.segments.handshake_ready_segment import HandshakeReadySegment
 from lib.transport.segments.segment import Segment
 from lib.transport.rdt import ReliableProtocol
 from lib.logger import Logger
@@ -184,18 +185,27 @@ class GoBackN(ReliableProtocol):
         self.log.info("Send complete")
 
     def receive(self, address, output_path):
+        handshake_done = False
         expected_seq = 0
         last_ack = None
 
         with open(output_path, "wb") as out:
             while True:
-                raw, _ = self.socket.recvfrom(MAX_PACKET_SIZE)
+                raw, addr = self.socket.recvfrom(MAX_PACKET_SIZE)
                 seg = Segment.from_bytes(raw)
+
+                if seg.is_handshake_response_segment():
+                    if not handshake_done and address == addr:
+                        self.log.info("Duplicated handshake response segment received. Re-sending READY segment")
+                        ready_pkt = HandshakeReadySegment()
+                        self.socket.sendto(ready_pkt.to_bytes(), address)
+                    continue
 
                 if not seg.is_data_segment():
                     self.log.error("Unexpected segment type, ignoring")
                     continue
 
+                handshake_done = True
                 self.log.info(f"Data segment received: seq={seg.seq} mf={seg.mf}")
 
                 if seg.seq == expected_seq:
