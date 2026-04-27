@@ -135,11 +135,7 @@ class StopAndWait(ReliableProtocol):
                             self.socket.sendto(ack.to_bytes(), address)
                             self.log.info("ACK segment sent")
                     except socket_module.timeout:
-                        if not handshake_done:
-                            self.log.info("Timeout waiting for data. Resending READY...")
-                            self.socket.sendto(HandshakeReadySegment().to_bytes(), address)
-                        else:
-                            self.log.debug("Timeout waiting for packet... still listening")
+                        self.log.debug("Timeout waiting for packet... still listening")
                         continue
             os.rename(temp_file, output_path)
             self.log.info("File transfer complete")

@@ -4,6 +4,7 @@ from lib.transport.segments.constants import *
 from lib.transport.stop_and_wait import StopAndWait
 from lib.transport.go_back_n import GoBackN
 from lib.transport.segments.segment import Segment
+from lib.logger import Logger
 
 class Client:
     def __init__(self, server_addr, server_port, verbose, quiet, protocol_id):
@@ -14,6 +15,7 @@ class Client:
         self.verbose = verbose
         self.quiet = quiet
         self.rdt = self._create_rdt()
+        self.log = Logger("CLIENT", verbose, quiet, "client.log")
 
     def _create_rdt(self):
         if self.protocol_id == SW_PROTOCOL_ID:
@@ -25,20 +27,22 @@ class Client:
 
         while retry_attempts < UPLOAD_MAX_RETRIES:
             try:
+                self.log.info("Sending handshake request to server")
                 self.skt.sendto(h_packet.to_bytes(), self.server_dir)
                 raw_data, addr = self.skt.recvfrom(SKT_BUFFER_SIZE)
                 response = Segment.from_bytes(raw_data)
 
                 if response.is_handshake_response_segment():
+                    self.log.info("Received handshake response from server")
                     return self.server_dir[0], response.get_port()
 
             except socket.timeout:
                 retry_attempts += 1
-                print(f"Handshake response from server not received. Attempt {retry_attempts}/5")
+                self.log.info(f"Handshake response from server not received. Attempt {retry_attempts}/5")
             except Exception as error:
-                print(f"Unexpected error: {error}")
+                self.log.info(f"Unexpected error: {error}")
 
-        print("Aborting. Max retries reached.")
+        self.log.info("Aborting. Max retries reached.")
         self.skt.close()
         return None
 

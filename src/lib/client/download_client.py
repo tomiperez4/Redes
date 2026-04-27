@@ -28,9 +28,10 @@ class DownloadClient(Client):
         ready_packet = HandshakeReadySegment()
         try:
             self.skt.sendto(ready_packet.to_bytes(), handler_address)
+            self.log.info("Ready segment sent. Waiting data from server...")
             self.rdt.receive(handler_address, self.dst_path)
         except Exception as error:
-            print(f"Connection lost: {error}. Sending FINISHED packet to server...")
+            self.log.info(f"Connection lost: {error}. Sending FINISHED packet to server...")
             fin = FinishedSegment()
             self.skt.sendto(fin.to_bytes(), handler_address)
         finally:

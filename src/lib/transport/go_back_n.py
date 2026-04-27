@@ -201,13 +201,14 @@ class GoBackN(ReliableProtocol):
                         os.remove(temp_file)
                         return
 
+                    '''
                     if seg.is_handshake_response_segment():
                         if not handshake_done and address == addr:
                             self.log.info("Duplicated handshake response segment received. Re-sending READY segment")
                             ready_pkt = HandshakeReadySegment()
                             self.socket.sendto(ready_pkt.to_bytes(), address)
                         continue
-
+                    '''
                     if not seg.is_data_segment():
                         self.log.error("Unexpected segment type, ignoring")
                         continue

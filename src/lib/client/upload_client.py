@@ -26,8 +26,9 @@ class UploadClient(Client):
 
         try:
             self.rdt.send(handler_address, self.src_path)
+            self.log.info("Packet sent successfully")
         except Exception as error:
-            print(f"Connection lost: {error}. Sending FINISHED packet to server...")
+            self.log.info(f"Connection lost: {error}. Sending FINISHED packet to server...")
             fin = FinishedSegment()
             self.skt.sendto(fin.to_bytes(), handler_address)
         finally:
