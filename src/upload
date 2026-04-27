@@ -1,9 +1,0 @@
-#!/usr/bin/env python3
-from upload import upload
-from lib.application.client_parser import ClientParser
-
-if __name__ == "__main__":
-    parser = ClientParser(is_upload=True)
-    args = parser.parse()
-
-    upload(args.host, args.port, args.src, args.verbose, args.quiet, args.name, args.protocol)

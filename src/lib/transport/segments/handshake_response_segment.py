@@ -1,7 +1,6 @@
 import struct
 from lib.transport.segments.segment import Segment
-
-HANDSHAKE_RESPONSE = 3
+from lib.transport.segments.constants import TYPE_HANDSHAKE_RESPONSE
 
 class HandshakeResponseSegment(Segment):
     FORMAT = "!B H"  # type, port
@@ -13,7 +12,7 @@ class HandshakeResponseSegment(Segment):
     def to_bytes(self):
         return struct.pack(
             self.FORMAT,
-            HANDSHAKE_RESPONSE,
+            TYPE_HANDSHAKE_RESPONSE,
             self.port
         )
 
@@ -27,7 +26,7 @@ class HandshakeResponseSegment(Segment):
             data[:HandshakeResponseSegment.SIZE]
         )
 
-        if type_ != HANDSHAKE_RESPONSE:
+        if type_ != TYPE_HANDSHAKE_RESPONSE:
             raise ValueError("Not a handshake response")
 
         return HandshakeResponseSegment(port)

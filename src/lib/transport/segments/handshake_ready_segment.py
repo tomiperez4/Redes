@@ -1,7 +1,6 @@
 import struct
 from lib.transport.segments.segment import Segment
-
-HANDSHAKE_READY = 4
+from lib.transport.segments.constants import TYPE_HANDSHAKE_READY
 
 class HandshakeReadySegment(Segment):
     FORMAT = "!B"  # type
@@ -12,7 +11,7 @@ class HandshakeReadySegment(Segment):
     def to_bytes(self):
         return struct.pack(
             self.FORMAT,
-            HANDSHAKE_READY)
+            TYPE_HANDSHAKE_READY)
 
     @staticmethod
     def from_bytes(data):

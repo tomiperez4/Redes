@@ -1,3 +1,4 @@
+import os
 import socket as socket_module
 import threading
 import time
@@ -13,8 +14,7 @@ SEGMENT_SIZE = 1024
 MAX_PACKET_SIZE = SEGMENT_SIZE + DataSegment.HEADER_SIZE
 TIMEOUT = 0.5
 WINDOW_SIZE = 8
-MAX_SEQ = 256  # xq el numero de seq tiene q ser un byte
-
+MAX_SEQ = 256
 
 class GoBackN(ReliableProtocol):
     def __init__(self, socket, verbose, quiet):
@@ -188,44 +188,57 @@ class GoBackN(ReliableProtocol):
         handshake_done = False
         expected_seq = 0
         last_ack = None
+        temp_file = output_path + ".tmp"
 
-        with open(output_path, "wb") as out:
-            while True:
-                raw, addr = self.socket.recvfrom(MAX_PACKET_SIZE)
-                seg = Segment.from_bytes(raw)
+        try:
+            with open(temp_file, "wb") as out:
+                while True:
+                    raw, addr = self.socket.recvfrom(MAX_PACKET_SIZE)
+                    seg = Segment.from_bytes(raw)
 
-                if seg.is_handshake_response_segment():
-                    if not handshake_done and address == addr:
-                        self.log.info("Duplicated handshake response segment received. Re-sending READY segment")
-                        ready_pkt = HandshakeReadySegment()
-                        self.socket.sendto(ready_pkt.to_bytes(), address)
-                    continue
+                    if seg.is_finished():
+                        self.log.info("Client disconnected (FINISHED PACKET RECEIVED).")
+                        os.remove(temp_file)
+                        return
 
-                if not seg.is_data_segment():
-                    self.log.error("Unexpected segment type, ignoring")
-                    continue
+                    if seg.is_handshake_response_segment():
+                        if not handshake_done and address == addr:
+                            self.log.info("Duplicated handshake response segment received. Re-sending READY segment")
+                            ready_pkt = HandshakeReadySegment()
+                            self.socket.sendto(ready_pkt.to_bytes(), address)
+                        continue
 
-                handshake_done = True
-                self.log.info(f"Data segment received: seq={seg.seq} mf={seg.mf}")
+                    if not seg.is_data_segment():
+                        self.log.error("Unexpected segment type, ignoring")
+                        continue
 
-                if seg.seq == expected_seq:
-                    out.write(seg.data)
-                    ack = AckSegment(expected_seq)
-                    self.socket.sendto(ack.to_bytes(), address)
-                    self.log.info(f"ACK sent: ack={expected_seq}")
-                    last_ack = expected_seq
+                    handshake_done = True
+                    self.log.info(f"Data segment received: seq={seg.seq} mf={seg.mf}")
 
-                    if seg.mf == 0:
-                        self.log.info("Final segment received ? connection closed")
-                        break
-
-                    expected_seq = (expected_seq + 1) % MAX_SEQ
-                else:
-                    self.log.error(
-                        f"Out-of-order segment: got seq={seg.seq}, "
-                        f"expected={expected_seq}"
-                    )
-                    if last_ack is not None:
-                        ack = AckSegment(last_ack)
+                    if seg.seq == expected_seq:
+                        out.write(seg.data)
+                        ack = AckSegment(expected_seq)
                         self.socket.sendto(ack.to_bytes(), address)
-                        self.log.info(f"Re-sent last ACK: ack={last_ack}")
+                        self.log.info(f"ACK sent: ack={expected_seq}")
+                        last_ack = expected_seq
+
+                        if seg.mf == 0:
+                            self.log.info("Final segment received. Connection closed")
+                            break
+
+                        expected_seq = (expected_seq + 1) % MAX_SEQ
+                    else:
+                        self.log.error(
+                            f"Out-of-order segment: got seq={seg.seq}, "
+                            f"expected={expected_seq}"
+                        )
+                        if last_ack is not None:
+                            ack = AckSegment(last_ack)
+                            self.socket.sendto(ack.to_bytes(), address)
+                            self.log.info(f"Re-sent last ACK: ack={last_ack}")
+            os.rename(temp_file, output_path)
+            self.log.info("File transfer complete")
+        except Exception as error:
+            self.log.error(f"File transfer failed: {error}")
+            if os.path.exists(temp_file):
+                os.remove(temp_file)

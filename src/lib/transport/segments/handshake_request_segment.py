@@ -1,7 +1,6 @@
 import struct
 from lib.transport.segments.segment import Segment
-
-HANDSHAKE_REQUEST = 2
+from lib.transport.segments.constants import TYPE_HANDSHAKE_REQUEST
 
 class HandshakeRequestSegment(Segment):
     HEADER_FORMAT = "!B B B H 4s"
@@ -18,7 +17,7 @@ class HandshakeRequestSegment(Segment):
     def to_bytes(self):
         header = struct.pack(
             self.HEADER_FORMAT,
-            HANDSHAKE_REQUEST,
+            TYPE_HANDSHAKE_REQUEST,
             self.operation,
             self.protocol,
             self.port,
@@ -38,7 +37,7 @@ class HandshakeRequestSegment(Segment):
             data[:HandshakeRequestSegment.HEADER_SIZE]
         )
 
-        if type_ != HANDSHAKE_REQUEST:
+        if type_ != TYPE_HANDSHAKE_REQUEST:
             raise ValueError("Not a handshake request")
 
         filename = data[HandshakeRequestSegment.HEADER_SIZE:]

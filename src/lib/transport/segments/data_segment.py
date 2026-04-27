@@ -1,6 +1,6 @@
 import struct
-from lib.transport.segments.segment import Segment, TYPE_DATA
-
+from lib.transport.segments.segment import Segment
+from lib.transport.segments.constants import TYPE_DATA
 
 class DataSegment(Segment):
     HEADER_FORMAT = "!B B B"  # type, seq_number, mf
