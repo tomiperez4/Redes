@@ -12,9 +12,7 @@ import time
 
 SEGMENT_SIZE = 1024
 MAX_PACKET_SIZE = SEGMENT_SIZE + DataSegment.HEADER_SIZE
-TIMEOUT = 0.5
-RTO_MIN = 0.2  # Un piso de 200ms evita el "pifio" sistemático en localhost
-RTO_MAX = 4.0
+TIMEOUT = 0.1
 
 # Modularizar, agregar retries
 class StopAndWait(ReliableProtocol):
@@ -30,9 +28,7 @@ class StopAndWait(ReliableProtocol):
         alpha, beta = 0.125, 0.25
         self.srtt = (1 - alpha) * self.srtt + alpha * sample_rtt
         self.rttvar = (1 - beta) * self.rttvar + beta * abs(self.srtt - sample_rtt)
-        # Aplicamos un RTO mínimo (RTO_MIN) para evitar que el emisor
-        # retransmita antes de que el receptor llegue a procesar el socket.
-        self.rto = max(RTO_MIN, min(self.srtt + 4 * self.rttvar, RTO_MAX))
+        self.rto = self.srtt + max(0.02, 4 * self.rttvar)  # Mínimo 50ms para evitar timeouts agresivos
 
     def send(self, address, path):
         self.socket.settimeout(self.rto)
@@ -96,15 +92,13 @@ class StopAndWait(ReliableProtocol):
         handshake_done = False
         expected_seq = 0
         temp_file = output_path + ".tmp"
-        retries = 0
 
         try:
             with open(temp_file, "wb") as output_file:
-                while retries < SW_MAX_RETRIES:
+                while True:
                     try:
                         raw, addr = self.socket.recvfrom(MAX_PACKET_SIZE)
                         packet = Segment.from_bytes(raw)
-                        retries = 0
 
                         if packet.is_finished():
                             self.log.info("Client disconnected (FINISHED PACKET RECEIVED).")
@@ -141,16 +135,12 @@ class StopAndWait(ReliableProtocol):
                             self.socket.sendto(ack.to_bytes(), address)
                             self.log.info("ACK segment sent")
                     except socket_module.timeout:
-                        retries += 1
-                        self.log.error(f"Timeout... retry {retries}/{SW_MAX_RETRIES}")
                         if not handshake_done:
                             self.log.info("Timeout waiting for data. Resending READY...")
                             self.socket.sendto(HandshakeReadySegment().to_bytes(), address)
                         else:
                             self.log.debug("Timeout waiting for packet... still listening")
                         continue
-                if retries >= SW_MAX_RETRIES:
-                    raise Exception("Max receive retries reached. Server is not available.")
             os.rename(temp_file, output_path)
             self.log.info("File transfer complete")
         except Exception as error:
