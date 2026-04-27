@@ -92,13 +92,15 @@ class StopAndWait(ReliableProtocol):
         handshake_done = False
         expected_seq = 0
         temp_file = output_path + ".tmp"
+        retries = 0
 
         try:
             with open(temp_file, "wb") as output_file:
-                while True:
+                while retries < SW_MAX_RETRIES:
                     try:
                         raw, addr = self.socket.recvfrom(MAX_PACKET_SIZE)
                         packet = Segment.from_bytes(raw)
+                        retries = 0
 
                         if packet.is_finished():
                             self.log.info("Client disconnected (FINISHED PACKET RECEIVED).")
@@ -135,12 +137,16 @@ class StopAndWait(ReliableProtocol):
                             self.socket.sendto(ack.to_bytes(), address)
                             self.log.info("ACK segment sent")
                     except socket_module.timeout:
+                        retries += 1
+                        self.log.error(f"Timeout... retry {retries}/{SW_MAX_RETRIES}")
                         if not handshake_done:
                             self.log.info("Timeout waiting for data. Resending READY...")
                             self.socket.sendto(HandshakeReadySegment().to_bytes(), address)
                         else:
                             self.log.debug("Timeout waiting for packet... still listening")
                         continue
+                if retries >= SW_MAX_RETRIES:
+                    raise Exception("Max receive retries reached. Server is not available.")
             os.rename(temp_file, output_path)
             self.log.info("File transfer complete")
         except Exception as error:

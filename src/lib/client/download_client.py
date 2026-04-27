@@ -29,8 +29,9 @@ class DownloadClient(Client):
         try:
             self.skt.sendto(ready_packet.to_bytes(), handler_address)
             self.rdt.receive(handler_address, self.dst_path)
-        except KeyboardInterrupt:
-            print("Interrupted. Sending FIN to server...")
-            self.skt.sendto(FinishedSegment().to_bytes(), handler_address)
+        except Exception as error:
+            print(f"Connection lost: {error}. Sending FINISHED packet to server...")
+            fin = FinishedSegment()
+            self.skt.sendto(fin.to_bytes(), handler_address)
         finally:
             self.skt.close()
