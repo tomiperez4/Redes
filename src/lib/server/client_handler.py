@@ -54,7 +54,7 @@ class ClientHandler(threading.Thread):
                 self.log.info("Downloading file...")
                 self.handle_download(address)
         finally:
-            self.on_finish()
+            self.on_finish((self.client_host, self.client_port))
             self.client_socket.close()
 
     def handle_upload(self, address):
