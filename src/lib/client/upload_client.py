@@ -26,8 +26,8 @@ class UploadClient(Client):
 
         try:
             self.rdt.send(handler_address, self.src_path)
-        except KeyboardInterrupt:
-            print("Interrupted. Sending FIN to server...")
+        except Exception as error:
+            print(f"Connection lost: {error}. Sending FINISHED packet to server...")
             fin = FinishedSegment()
             self.skt.sendto(fin.to_bytes(), handler_address)
         finally:

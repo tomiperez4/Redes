@@ -28,7 +28,7 @@ class StopAndWait(ReliableProtocol):
         alpha, beta = 0.125, 0.25
         self.srtt = (1 - alpha) * self.srtt + alpha * sample_rtt
         self.rttvar = (1 - beta) * self.rttvar + beta * abs(self.srtt - sample_rtt)
-        self.rto = self.srtt + max(0.05, 4 * self.rttvar)  # Mínimo 50ms para evitar timeouts agresivos
+        self.rto = self.srtt + max(0.02, 4 * self.rttvar)  # Mínimo 50ms para evitar timeouts agresivos
 
     def send(self, address, path):
         self.socket.settimeout(self.rto)
@@ -82,7 +82,6 @@ class StopAndWait(ReliableProtocol):
                         retries += 1
                         self.log.error(f"Timeout... retry {retries}/{SW_MAX_RETRIES}")
                         retransmitted = True
-                        # Backoff exponencial al fallar
                         self.rto = min(self.rto * 2, 4.0)
                         self.socket.settimeout(self.rto)
                         continue
@@ -97,43 +96,51 @@ class StopAndWait(ReliableProtocol):
         try:
             with open(temp_file, "wb") as output_file:
                 while True:
-                    raw, addr = self.socket.recvfrom(MAX_PACKET_SIZE)
-                    packet = Segment.from_bytes(raw)
+                    try:
+                        raw, addr = self.socket.recvfrom(MAX_PACKET_SIZE)
+                        packet = Segment.from_bytes(raw)
 
-                    if packet.is_finished():
-                        self.log.info("Client disconnected (FINISHED PACKET RECEIVED).")
-                        os.remove(temp_file)
-                        return
+                        if packet.is_finished():
+                            self.log.info("Client disconnected (FINISHED PACKET RECEIVED).")
+                            os.remove(temp_file)
+                            return
 
-                    if packet.is_handshake_response_segment():
-                        if not handshake_done and address == addr:
-                            self.log.info("Duplicated handshake response segment received. Re-sending READY segment")
-                            ready_pkt = HandshakeReadySegment()
-                            self.socket.sendto(ready_pkt.to_bytes(), address)
+                        if packet.is_handshake_response_segment():
+                            if not handshake_done and address == addr:
+                                self.log.info("Duplicated handshake response segment received. Re-sending READY segment")
+                                ready_pkt = HandshakeReadySegment()
+                                self.socket.sendto(ready_pkt.to_bytes(), address)
+                            continue
+
+                        if not packet.is_data_segment():
+                            self.log.error("Unexpected segment. Retry")
+                            continue
+
+                        handshake_done = True
+                        self.log.info("Data segment received")
+                        if packet.seq == expected_seq:
+                            self.log.info("Packets sequence numbers match")
+                            data = packet.data
+                            output_file.write(data)
+                            ack = AckSegment(expected_seq)
+                            self.socket.sendto(ack.to_bytes(), address)
+                            self.log.info("ACK segment sent")
+                            expected_seq = 1 - expected_seq
+                            if packet.mf == 0:
+                                self.log.info("Final data segment received. End connection")
+                                break
+                        else:
+                            self.log.error("Packet sequence numbers do not match. Letting sender know")
+                            ack = AckSegment(1 - expected_seq)
+                            self.socket.sendto(ack.to_bytes(), address)
+                            self.log.info("ACK segment sent")
+                    except socket_module.timeout:
+                        if not handshake_done:
+                            self.log.info("Timeout waiting for data. Resending READY...")
+                            self.socket.sendto(HandshakeReadySegment().to_bytes(), address)
+                        else:
+                            self.log.debug("Timeout waiting for packet... still listening")
                         continue
-
-                    if not packet.is_data_segment():
-                        self.log.error("Unexpected segment. Retry")
-                        continue
-
-                    handshake_done = True
-                    self.log.info("Data segment received")
-                    if packet.seq == expected_seq:
-                        self.log.info("Packets sequence numbers match")
-                        data = packet.data
-                        output_file.write(data)
-                        ack = AckSegment(expected_seq)
-                        self.socket.sendto(ack.to_bytes(), address)
-                        self.log.info("ACK segment sent")
-                        expected_seq = 1 - expected_seq
-                        if packet.mf == 0:
-                            self.log.info("Final data segment received. End connection")
-                            break
-                    else:
-                        self.log.error("Packet sequence numbers do not match. Letting sender know")
-                        ack = AckSegment(1 - expected_seq)
-                        self.socket.sendto(ack.to_bytes(), address)
-                        self.log.info("ACK segment sent")
             os.rename(temp_file, output_path)
             self.log.info("File transfer complete")
         except Exception as error:
