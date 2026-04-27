@@ -12,7 +12,9 @@ import time
 
 SEGMENT_SIZE = 1024
 MAX_PACKET_SIZE = SEGMENT_SIZE + DataSegment.HEADER_SIZE
-TIMEOUT = 0.1
+TIMEOUT = 0.5
+RTO_MIN = 0.2  # Un piso de 200ms evita el "pifio" sistemático en localhost
+RTO_MAX = 4.0
 
 # Modularizar, agregar retries
 class StopAndWait(ReliableProtocol):
@@ -28,7 +30,9 @@ class StopAndWait(ReliableProtocol):
         alpha, beta = 0.125, 0.25
         self.srtt = (1 - alpha) * self.srtt + alpha * sample_rtt
         self.rttvar = (1 - beta) * self.rttvar + beta * abs(self.srtt - sample_rtt)
-        self.rto = self.srtt + max(0.02, 4 * self.rttvar)  # Mínimo 50ms para evitar timeouts agresivos
+        # Aplicamos un RTO mínimo (RTO_MIN) para evitar que el emisor
+        # retransmita antes de que el receptor llegue a procesar el socket.
+        self.rto = max(RTO_MIN, min(self.srtt + 4 * self.rttvar, RTO_MAX))
 
     def send(self, address, path):
         self.socket.settimeout(self.rto)
