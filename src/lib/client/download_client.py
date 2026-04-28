@@ -1,3 +1,4 @@
+import shutil
 import socket
 
 from lib.transport.segments.handshake_request_segment import HandshakeRequestSegment
@@ -5,6 +6,12 @@ from lib.transport.segments.handshake_ready_segment import HandshakeReadySegment
 from lib.transport.segments.finished_segment import FinishedSegment
 from lib.server.client_handler import CLIENT_TYPE_DOWNLOAD
 from lib.client.client import Client
+from lib.transport.segments.handshake_error_segment import HandshakeErrorSegment
+
+
+def has_enough_space(file_size):
+    total, used, free = shutil.disk_usage(".")
+    return free >= file_size
 
 class DownloadClient(Client):
     def __init__(self, server_addr, server_port, verbose, quiet, protocol_id, dst_path, filename):
@@ -22,8 +29,18 @@ class DownloadClient(Client):
             size = 0
         )
 
-        handler_address = self.handshake(h_packet)
-        if handler_address is None:
+        result = self.handshake(h_packet)
+        if result is None:
+            return
+        host, port, file_size = result
+        handler_address = (host, port)
+
+        if not has_enough_space(file_size):
+            self.log.warning("Not enough disk space. Rejecting download")
+
+            error = HandshakeErrorSegment()
+            self.skt.sendto(error.to_bytes(), handler_address)
+            self.skt.close()
             return
 
         ready_packet = HandshakeReadySegment()

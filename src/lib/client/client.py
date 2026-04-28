@@ -32,7 +32,7 @@ class Client:
 
                 if response.is_handshake_response_segment():
                     self.log.info("Received handshake response from server")
-                    return self.server_dir[0], response.get_port()
+                    return self.server_dir[0], response.get_port(), response.get_size()
 
                 if response.is_handshake_error_segment():
                     self.log.info("Received handshake error from server. Aborting")

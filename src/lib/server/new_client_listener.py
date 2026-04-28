@@ -26,9 +26,11 @@ class NewClientListener(threading.Thread):
                 raw, address = self.socket.recvfrom(BUF_SIZE)
                 self.log.debug(f"Packet received from {address}")
                 segment = Segment.from_bytes(raw)
+                file_size = 0
 
                 if address in self.clients and segment.is_handshake_request_segment():
-                    h_response = HandshakeResponseSegment(self.clients[address])
+                    port, size = self.clients[address]
+                    h_response = HandshakeResponseSegment(port, size)
                     self.socket.sendto(h_response.to_bytes(), address)
                     continue
 
@@ -54,6 +56,7 @@ class NewClientListener(threading.Thread):
                     if not os.path.exists(file_path):
                         self._ack_error(f"File {segment.filename} does not exist", address)
                         continue
+                    file_size = os.path.getsize(file_path)
 
                 self.log.info(f"New client: {address} (total: {len(self.clients)})")
 
@@ -66,10 +69,11 @@ class NewClientListener(threading.Thread):
                     segment.protocol,
                     self.client_finished,
                     self.release_storage,
-                    self.log.clone(f"CLIENT-HANDLER ({address})")
+                    self.log.clone(f"CLIENT-HANDLER ({address})"),
+                    file_size
                 )
 
-                self.clients[address] = handler.client_socket.getsockname()[1]
+                self.clients[address] = (handler.client_socket.getsockname()[1], file_size)
                 handler.start()
 
             except Exception as error:

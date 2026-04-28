@@ -49,3 +49,6 @@ class HandshakeRequestSegment(Segment):
 
     def is_handshake_request_segment(self):
         return True
+
+    def get_size(self):
+        return self.size

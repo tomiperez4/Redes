@@ -35,9 +35,11 @@ class UploadClient(Client):
             size = filesize_mb,
         )
 
-        handler_address = self.handshake(h_packet)
-        if handler_address is None:
+        result = self.handshake(h_packet)
+        if result is None:
             return
+        host, port, file_size = result
+        handler_address = (host, port)
 
         try:
             self.rdt.send(handler_address, self.src_path)

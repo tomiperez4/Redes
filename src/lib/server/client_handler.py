@@ -10,7 +10,7 @@ import os
 
 class ClientHandler(threading.Thread):
     def __init__(self, client_host, client_port, client_type, filename, size,
-                 protocol_id, on_finish, release_storage, log):
+                 protocol_id, on_finish, release_storage, log, file_size):
         super().__init__()
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.client_socket.bind(('', 0))
@@ -23,6 +23,7 @@ class ClientHandler(threading.Thread):
         self.on_finish = on_finish
         self.release_storage = release_storage
         self.log = log
+        self.file_size = file_size
 
         if protocol_id == PROTOCOL_STOP_AND_WAIT:
             self.protocol = StopAndWait(self.client_socket, self.log.clone("STOP-AND-WAIT"))
@@ -37,7 +38,7 @@ class ClientHandler(threading.Thread):
         address = (self.client_host, self.client_port)
 
         port = self.client_socket.getsockname()[1]
-        response = HandshakeResponseSegment(port)
+        response = HandshakeResponseSegment(port, self.file_size)
 
         self.client_socket.sendto(response.to_bytes(), address)
 
@@ -65,6 +66,10 @@ class ClientHandler(threading.Thread):
         while True:
             raw, _ = self.client_socket.recvfrom(BUF_SIZE)
             segment = Segment.from_bytes(raw)
+
+            if segment.is_handshake_error_segment():
+                self.log.info("Client rejected download (no space)")
+                return
 
             if segment.is_handshake_ready_segment():
                 break

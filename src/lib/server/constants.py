@@ -2,7 +2,7 @@
 BUF_SIZE = 1024
 MAX_CLIENTS = 10
 MAX_STORAGE_SIZE = 500    # MB
-MAX_FILE_SIZE = 20        # MB
+MAX_FILE_SIZE = 15        # MB
 
 #Client types
 CLIENT_TYPE_UPLOAD = 0
