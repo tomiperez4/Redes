@@ -5,28 +5,23 @@ from lib.transport.segments.handshake_response_segment import HandshakeResponseS
 from lib.transport.segments.segment import Segment
 from lib.transport.stop_and_wait import StopAndWait
 from lib.transport.go_back_n import GoBackN
-
-# Constantes generales
-CLIENT_TYPE_UPLOAD = 0
-CLIENT_TYPE_DOWNLOAD = 1
-
-PROTOCOL_STOP_AND_WAIT = 0
-PROTOCOL_GO_BACK_N = 1
-
-BUF_SIZE = 1024
+from lib.server.constants import (CLIENT_TYPE_UPLOAD, CLIENT_TYPE_DOWNLOAD, PROTOCOL_STOP_AND_WAIT, PROTOCOL_GO_BACK_N, BUF_SIZE)
+import os
 
 class ClientHandler(threading.Thread):
-    def __init__(self, client_host, client_port, client_type, filename,
-                 protocol_id, on_finish, log):
+    def __init__(self, client_host, client_port, client_type, filename, size,
+                 protocol_id, on_finish, release_storage, log):
         super().__init__()
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.client_socket.bind(('', 0))
         self.client_host = client_host
         self.client_port = client_port
         self.client_type = client_type
-        self.filename = "./storage/" + filename # cambiarlo
+        self.dest_file_path = "./storage/" + filename # cambiarlo
+        self.size = size
         self.protocol = None
         self.on_finish = on_finish
+        self.release_storage = release_storage
         self.log = log
 
         if protocol_id == PROTOCOL_STOP_AND_WAIT:
@@ -50,16 +45,20 @@ class ClientHandler(threading.Thread):
             if self.client_type == CLIENT_TYPE_UPLOAD:
                 self.log.info("Uploading file...")
                 self.handle_upload(address)
-            else:
+            elif self.client_type == CLIENT_TYPE_DOWNLOAD:
                 self.log.info("Downloading file...")
                 self.handle_download(address)
+            else:
+                raise ValueError("Unknown client type")
         finally:
             self.on_finish((self.client_host, self.client_port))
             self.client_socket.close()
 
     def handle_upload(self, address):
         """Handles the UPLOAD operation"""
-        self.protocol.receive(address, self.filename)
+        self.protocol.receive(address, self.dest_file_path)
+        if not os.path.exists(self.dest_file_path) or os.path.getsize(self.dest_file_path) != self.size:
+            self.release_storage()
 
     def handle_download(self, address):
         """Handles the DOWNLOAD operation"""
@@ -71,4 +70,4 @@ class ClientHandler(threading.Thread):
                 break
 
 
-        self.protocol.send(address, self.filename)
+        self.protocol.send(address, self.dest_file_path)

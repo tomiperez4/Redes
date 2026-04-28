@@ -34,13 +34,18 @@ class Client:
                     self.log.info("Received handshake response from server")
                     return self.server_dir[0], response.get_port()
 
+                if response.is_handshake_error_segment():
+                    self.log.info("Received handshake error from server. Aborting")
+                    self.skt.close()
+                    return None
+
             except socket.timeout:
                 retry_attempts += 1
-                self.log.info(f"Handshake response from server not received. Attempt {retry_attempts}/5")
+                self.log.warning(f"Handshake response from server not received. Attempt {retry_attempts}/5")
             except Exception as error:
-                self.log.info(f"Unexpected error: {error}")
+                self.log.warning(f"Unexpected error: {error}")
 
-        self.log.info("Aborting. Max retries reached.")
+        self.log.error("Aborting. Max retries reached.")
         self.skt.close()
         return None
 

@@ -87,6 +87,8 @@ class Logger:
         if not self.quiet:
             self.adapter.info(message)
 
+    def warning(self, message):
+        self.adapter.warning(message)
+
     def error(self, message):
-        # El error siempre se loguea
         self.adapter.error(message)

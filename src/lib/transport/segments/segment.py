@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from lib.transport.segments.constants import *
 
+
 class Segment(ABC):
     @abstractmethod
     def to_bytes(self):
@@ -14,6 +15,7 @@ class Segment(ABC):
         from lib.transport.segments.handshake_request_segment import HandshakeRequestSegment
         from lib.transport.segments.handshake_response_segment import HandshakeResponseSegment
         from lib.transport.segments.handshake_ready_segment import HandshakeReadySegment
+        from lib.transport.segments.handshake_error_segment import HandshakeErrorSegment
 
         if not data:
             raise ValueError("Empty data")
@@ -38,6 +40,9 @@ class Segment(ABC):
         elif dtype == TYPE_HANDSHAKE_READY:
             return HandshakeReadySegment.from_bytes(data)
 
+        elif dtype == TYPE_HANDSHAKE_ERROR:
+            return HandshakeErrorSegment.from_bytes(data)
+
         else:
             raise ValueError(f"Unknown segment type: {dtype}")
 
@@ -55,6 +60,9 @@ class Segment(ABC):
         return False
 
     def is_handshake_ready_segment(self):
+        return False
+
+    def is_handshake_error_segment(self):
         return False
 
     def is_finished(self):

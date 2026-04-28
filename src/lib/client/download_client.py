@@ -19,6 +19,7 @@ class DownloadClient(Client):
             port = int(self.server_dir[1]),
             host = socket.inet_aton(self.server_dir[0]),
             filename = self.filename,
+            size = 0
         )
 
         handler_address = self.handshake(h_packet)

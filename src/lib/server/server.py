@@ -22,6 +22,6 @@ class Server:
         except Exception as error:
             self.log.error(f"Failed to bind socket: {error}")
             return
-        listener = NewClientListener(self.socket, self.log.clone("CLIENT-LISTENER"))
+        listener = NewClientListener(self.socket, self.storage, self.log.clone("CLIENT-LISTENER"))
         self.log.debug("Starting NewClientListener thread")
         listener.start()
