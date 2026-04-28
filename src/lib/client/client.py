@@ -12,15 +12,13 @@ class Client:
         self.skt.settimeout(SKT_TIMEOUT)
         self.server_dir = (server_addr, server_port)
         self.protocol_id = protocol_id
-        self.verbose = verbose
-        self.quiet = quiet
+        self.log = Logger(prefix="CLIENT", verbose=verbose, quiet=quiet, log_file="clients.log")
         self.rdt = self._create_rdt()
-        self.log = Logger("CLIENT", verbose, quiet, "client.log")
 
     def _create_rdt(self):
         if self.protocol_id == SW_PROTOCOL_ID:
-            return StopAndWait(self.skt, self.verbose, self.quiet)
-        return GoBackN(self.skt, self.verbose, self.quiet)
+            return StopAndWait(self.skt, self.log)
+        return GoBackN(self.skt, self.log)
 
     def handshake(self, h_packet):
         retry_attempts = 0

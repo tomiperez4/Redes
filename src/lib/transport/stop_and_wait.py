@@ -5,7 +5,6 @@ from lib.transport.segments.data_segment import DataSegment
 from lib.transport.segments.handshake_ready_segment import HandshakeReadySegment
 from lib.transport.segments.segment import Segment
 from lib.transport.rdt import ReliableProtocol
-from lib.logger import Logger
 from lib.transport.segments.constants import SW_MAX_RETRIES
 import socket as socket_module
 import time
@@ -16,9 +15,8 @@ TIMEOUT = 0.1
 
 # Modularizar, agregar retries
 class StopAndWait(ReliableProtocol):
-    def __init__(self, socket, verbose, quiet):
-        super().__init__(socket)
-        self.log = Logger('STOP-AND-WAIT', verbose, quiet)
+    def __init__(self, socket, log):
+        super().__init__(socket, log)
         # Variables para RTO Dinámico
         self.srtt = TIMEOUT
         self.rttvar = TIMEOUT / 2

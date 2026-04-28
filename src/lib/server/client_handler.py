@@ -5,7 +5,6 @@ from lib.transport.segments.handshake_response_segment import HandshakeResponseS
 from lib.transport.segments.segment import Segment
 from lib.transport.stop_and_wait import StopAndWait
 from lib.transport.go_back_n import GoBackN
-from lib.logger import Logger
 
 # Constantes generales
 CLIENT_TYPE_UPLOAD = 0
@@ -17,7 +16,8 @@ PROTOCOL_GO_BACK_N = 1
 BUF_SIZE = 1024
 
 class ClientHandler(threading.Thread):
-    def __init__(self, client_host, client_port, client_type, filename, protocol_id, on_finish, verbose, quiet):
+    def __init__(self, client_host, client_port, client_type, filename,
+                 protocol_id, on_finish, log):
         super().__init__()
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.client_socket.bind(('', 0))
@@ -25,16 +25,16 @@ class ClientHandler(threading.Thread):
         self.client_port = client_port
         self.client_type = client_type
         self.filename = "./storage/" + filename # cambiarlo
-        self.protocol = StopAndWait(self.client_socket, verbose, quiet) # Dsps lo cambiamos cuando este GoBackN
+        self.protocol = None
         self.on_finish = on_finish
-        self.verbose = verbose
-        self.quiet = quiet
-        self.log = Logger("CLIENT-HANDLER", verbose, quiet)
+        self.log = log
 
         if protocol_id == PROTOCOL_STOP_AND_WAIT:
-            self.protocol = StopAndWait(self.client_socket, verbose, quiet)
+            self.protocol = StopAndWait(self.client_socket, self.log.clone("STOP-AND-WAIT"))
+        elif protocol_id == PROTOCOL_GO_BACK_N:
+            self.protocol = GoBackN(self.client_socket, self.log.clone("GO-BACK-N"))
         else:
-            self.protocol = GoBackN(self.client_socket, verbose, quiet)
+            raise ValueError("Unknown protocol")
 
     def run(self):
         """Initializes handler and runs the specified command"""
@@ -63,17 +63,12 @@ class ClientHandler(threading.Thread):
 
     def handle_download(self, address):
         """Handles the DOWNLOAD operation"""
-        self.client_socket.settimeout(0.5)
         while True:
-            try:
-                raw, _ = self.client_socket.recvfrom(BUF_SIZE)
-                segment = Segment.from_bytes(raw)
+            raw, _ = self.client_socket.recvfrom(BUF_SIZE)
+            segment = Segment.from_bytes(raw)
 
-                if segment.is_handshake_ready_segment():
-                    break
-
-            except socket.timeout:
-                self.log.debug("Ready segment not received from client. Timeout. Re-sending handshake response segment")
+            if segment.is_handshake_ready_segment():
+                break
 
 
         self.protocol.send(address, self.filename)

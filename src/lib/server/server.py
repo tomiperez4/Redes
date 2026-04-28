@@ -6,15 +6,13 @@ from lib.server.new_client_listener import NewClientListener
 
 
 class Server:
-    def __init__(self, host, port, workers, storage, verbose, quiet):
+    def __init__(self, host, port, workers, storage, log):
         self.address = (host, port)
         self.storage = storage
-        self.verbose = verbose
-        self.quiet = quiet
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.clients = {}
         self.executor = ThreadPoolExecutor(max_workers=workers)
-        self.log = Logger("SERVER", verbose, quiet)
+        self.log = log
 
     def start(self):
         try:
@@ -24,6 +22,6 @@ class Server:
         except Exception as error:
             self.log.error(f"Failed to bind socket: {error}")
             return
-        listener = NewClientListener(self.socket, self.verbose, self.quiet)
+        listener = NewClientListener(self.socket, self.log.clone("CLIENT-LISTENER"))
         self.log.debug("Starting NewClientListener thread")
         listener.start()

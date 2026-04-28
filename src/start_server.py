@@ -3,9 +3,13 @@ from lib.application.server_parser import ServerParser
 from lib.server.server import Server
 from lib.logger import Logger
 
+SERVER_LOG_FILE = "app.log"
+CLIENTS_LOG_FILE = "clients.log"
+
 def main():
     parser = ServerParser()
     args = parser.parse()
+    Logger.clear_session_logs([SERVER_LOG_FILE, CLIENTS_LOG_FILE])
     log = Logger("SERVER", args.verbose, args.quiet)
     storage_path = args.storage
     if not os.path.exists(storage_path):
@@ -16,7 +20,7 @@ def main():
             log.error(f"Failed to create storage directory: {error}")
             return
     server = Server(host=args.host, port=args.port, workers= 5,
-                    storage=storage_path, verbose=args.verbose, quiet=args.quiet)
+                    storage=storage_path, log=log)
 
     try:
         log.info(f"Starting server on {args.host}:{args.port}")

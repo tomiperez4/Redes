@@ -9,14 +9,12 @@ BUF_SIZE = 1024
 MAX_CLIENTS = 10
 
 class NewClientListener(threading.Thread):
-    def __init__(self, socket, verbose, quiet):
+    def __init__(self, socket, log):
         super().__init__()
         self.socket = socket
         self.clients = {}
         self.lock = threading.Lock()
-        self.verbose = verbose
-        self.quiet = quiet
-        self.log = Logger("CLIENT-LISTENER", verbose, quiet)
+        self.log = log
 
     def run(self):
         self.log.info("Listening for new clients")
@@ -48,8 +46,7 @@ class NewClientListener(threading.Thread):
                     segment.filename,
                     segment.protocol,
                     self.client_finished,
-                    self.verbose,
-                    self.quiet
+                    self.log.clone(f"CLIENT-HANDLER ({address})")
                 )
 
                 self.clients[address] = handler.client_socket.getsockname()[1]

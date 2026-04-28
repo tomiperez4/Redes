@@ -17,9 +17,8 @@ WINDOW_SIZE = 8
 MAX_SEQ = 256
 
 class GoBackN(ReliableProtocol):
-    def __init__(self, socket, verbose, quiet):
-        super().__init__(socket)
-        self.log = Logger('GO-BACK-N', verbose, quiet)
+    def __init__(self, socket, log):
+        super().__init__(socket, log)
         self.srtt = TIMEOUT
         self.rttvar = TIMEOUT / 2
         self.rto = TIMEOUT
