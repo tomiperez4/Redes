@@ -2,6 +2,7 @@ import socket
 
 from lib.constants.socket_constants import TIMEOUT, BUFFER_SIZE
 from lib.constants.protocol_constants import PROTOCOL_STOP_AND_WAIT, MAX_RETRIES
+from lib.constants.log_file_constants import CLIENTS_LOG_FILE
 from lib.transport.stop_and_wait import StopAndWait
 from lib.transport.go_back_n import GoBackN
 from lib.segments.segment import Segment
@@ -13,7 +14,7 @@ class Client:
         self.skt.settimeout(TIMEOUT)
         self.server_dir = (server_addr, server_port)
         self.protocol_id = protocol_id
-        self.log = Logger(prefix="CLIENT", verbose=verbose, quiet=quiet, log_file="clients.log")
+        self.log = Logger("CLIENT", CLIENTS_LOG_FILE, verbose=verbose, quiet=quiet)
         self.rdt = self._create_rdt()
 
     def _create_rdt(self):
