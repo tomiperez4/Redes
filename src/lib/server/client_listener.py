@@ -1,17 +1,17 @@
 import threading
 
 from lib.server.client_handler import ClientHandler
-from lib.transport.segments.handshake_error_segment import HandshakeErrorSegment
-from lib.transport.segments.handshake_response_segment import HandshakeResponseSegment
-from lib.transport.segments.segment import Segment
+from lib.segments.handshake_error_segment import HandshakeErrorSegment
+from lib.segments.handshake_response_segment import HandshakeResponseSegment
+from lib.segments.segment import Segment
 from lib.server.constants import BUF_SIZE, MAX_CLIENTS, CLIENT_TYPE_UPLOAD, MAX_STORAGE_SIZE, MAX_FILE_SIZE, \
     CLIENT_TYPE_DOWNLOAD
 import math
 import os
 
-class NewClientListener(threading.Thread):
+class ClientListener:
     def __init__(self, socket, storage_path, log):
-        super().__init__()
+        #super().__init__()  Estaba puesto que ClientListener era subclass de thread. Lo sacamos (en principio)
         self.socket = socket
         self.clients = {}
         self.lock = threading.Lock()
@@ -19,7 +19,7 @@ class NewClientListener(threading.Thread):
         self.current_storage_mb = get_directory_total_size(storage_path)
         self.log = log
 
-    def run(self):
+    def start(self):
         self.log.info("Listening for new clients")
         while True:
             try:
@@ -77,17 +77,17 @@ class NewClientListener(threading.Thread):
                 handler.start()
 
             except Exception as error:
-                self.log.error(f"Listener error: {error}")
+                self.log.warning(f"Listener error: {error}")
 
     def client_finished(self, address):
         with self.lock:
             del self.clients[address]
-            self.log.info(f"Client finished (remaining: {len(self.clients)})")
+            self.log.debug(f"Client finished (remaining: {len(self.clients)})")
 
     def release_storage(self, file_size):
         with self.storage_lock:
             self.current_storage_mb -= file_size
-            self.log.info(f"Storage released. Total: {self.current_storage_mb}MB")
+            self.log.debug(f"Storage released. Total: {self.current_storage_mb}MB")
 
     def _ack_error(self, error_msg, address):
         self.log.warning(error_msg)
@@ -110,5 +110,4 @@ def get_directory_total_size(directory_path):
         return 0
 
     size_in_mb = math.ceil(total_bytes / (1024 * 1024))
-    print(f"Initial storage size: {size_in_mb} MB")
     return size_in_mb
