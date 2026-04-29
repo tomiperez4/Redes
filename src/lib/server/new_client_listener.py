@@ -59,7 +59,6 @@ class NewClientListener(threading.Thread):
                     file_size = os.path.getsize(file_path)
 
                 self.log.info(f"New client: {address} (total: {len(self.clients)})")
-
                 handler = ClientHandler(
                     address[0],
                     address[1],
@@ -72,7 +71,6 @@ class NewClientListener(threading.Thread):
                     self.log.clone(f"CLIENT-HANDLER ({address})"),
                     file_size
                 )
-
                 self.clients[address] = (handler.client_socket.getsockname()[1], file_size)
                 handler.start()
 

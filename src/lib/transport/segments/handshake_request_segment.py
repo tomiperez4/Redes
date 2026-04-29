@@ -1,9 +1,10 @@
 import struct
+import socket
 from lib.transport.segments.segment import Segment
 from lib.transport.segments.constants import HSK_FLAG, HSK_TYPE_REQUEST
 
 class HandshakeRequestSegment(Segment):
-    PAYLOAD_FORMAT = "!BBHBH4s"
+    PAYLOAD_FORMAT = "!BBHH4s"
 
     def __init__(self, operation, protocol, size, port, host, filename, seq=0):
         super().__init__(seq)
@@ -24,6 +25,22 @@ class HandshakeRequestSegment(Segment):
         f_size = struct.calcsize(HandshakeRequestSegment.PAYLOAD_FORMAT)
         fields = struct.unpack(HandshakeRequestSegment.PAYLOAD_FORMAT, data[:f_size])
         name = data[f_size:].decode("utf-8")
-        return HandshakeRequestSegment(seq, *fields, name)
+        operation, protocol, size, port, ip_bytes = fields
+        host = socket.inet_ntoa(ip_bytes)
+        return HandshakeRequestSegment(
+            operation,
+            protocol,
+            size,
+            port,
+            host,
+            name,
+            seq
+        )
 
     def is_handshake_request_segment(self): return True
+
+    def get_port(self):
+        return self.port
+
+    def get_size(self):
+        return self.size

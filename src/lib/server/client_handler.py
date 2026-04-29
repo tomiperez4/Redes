@@ -59,7 +59,7 @@ class ClientHandler(threading.Thread):
         """Handles the UPLOAD operation"""
         self.protocol.receive(address, self.dest_file_path)
         if not os.path.exists(self.dest_file_path) or os.path.getsize(self.dest_file_path) != self.size:
-            self.release_storage()
+            self.release_storage(self.file_size)
 
     def handle_download(self, address):
         """Handles the DOWNLOAD operation"""

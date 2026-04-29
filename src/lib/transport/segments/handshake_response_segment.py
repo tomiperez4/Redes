@@ -20,6 +20,12 @@ class HandshakeResponseSegment(Segment):
     @staticmethod
     def from_payload(seq, data):
         port, size = struct.unpack(HandshakeResponseSegment.PAYLOAD_FORMAT, data)
-        return HandshakeResponseSegment(seq, port, size)
+        return HandshakeResponseSegment(port, size, seq)
 
     def is_handshake_response_segment(self): return True
+
+    def get_port(self):
+        return self.port
+
+    def get_size(self):
+        return self.size
