@@ -1,6 +1,6 @@
 import struct
-from lib.transport.segments.segment import Segment
-from lib.transport.segments.constants import TYPE_HANDSHAKE_RESPONSE
+from lib.segments.segment import Segment
+from lib.constants.segment_constants import TYPE_HANDSHAKE_RESPONSE
 
 class HandshakeResponseSegment(Segment):
     FORMAT = "!B H I"  # type, port, file size

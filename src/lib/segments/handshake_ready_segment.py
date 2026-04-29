@@ -1,6 +1,6 @@
 import struct
-from lib.transport.segments.segment import Segment
-from lib.transport.segments.constants import TYPE_HANDSHAKE_READY
+from lib.segments.segment import Segment
+from lib.constants.segment_constants import TYPE_HANDSHAKE_READY
 
 class HandshakeReadySegment(Segment):
     FORMAT = "!B"  # type

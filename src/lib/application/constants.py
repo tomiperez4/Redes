@@ -4,6 +4,6 @@ DEFAULT_STORAGE_PATH = "./storage"
 DEFAULT_STORAGE_FILENAME = "file.txt"
 DEFAULT_STORAGE_FILEPATH = "storage"
 DEFAULT_UPLOAD_FILEPATH = "./files"
-DEFAULT_DOWNLOAD_FILEPATH = "./storage/file.txt" # Concatenamos hay que cambiarlo
+DEFAULT_DOWNLOAD_FILEPATH = "./storage/file.txt"
 DEFAULT_FILENAME = "file.txt"
 DEFAULT_PROTOCOL = "sw"

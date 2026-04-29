@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from lib.transport.segments.constants import *
+from lib.constants.segment_constants import *
 
 
 class Segment(ABC):
@@ -9,13 +9,13 @@ class Segment(ABC):
 
     @staticmethod
     def from_bytes(data):
-        from lib.transport.segments.ack_segment import AckSegment
-        from lib.transport.segments.data_segment import DataSegment
-        from lib.transport.segments.finished_segment import FinishedSegment
-        from lib.transport.segments.handshake_request_segment import HandshakeRequestSegment
-        from lib.transport.segments.handshake_response_segment import HandshakeResponseSegment
-        from lib.transport.segments.handshake_ready_segment import HandshakeReadySegment
-        from lib.transport.segments.handshake_error_segment import HandshakeErrorSegment
+        from lib.segments.ack_segment import AckSegment
+        from lib.segments.data_segment import DataSegment
+        from lib.segments.finished_segment import FinishedSegment
+        from lib.segments.handshake_request_segment import HandshakeRequestSegment
+        from lib.segments.handshake_response_segment import HandshakeResponseSegment
+        from lib.segments.handshake_ready_segment import HandshakeReadySegment
+        from lib.segments.handshake_error_segment import HandshakeErrorSegment
 
         if not data:
             raise ValueError("Empty data")

@@ -1,6 +1,6 @@
 import struct
-from lib.transport.segments.segment import Segment
-from lib.transport.segments.constants import TYPE_HANDSHAKE_REQUEST
+from lib.segments.segment import Segment
+from lib.constants.segment_constants import TYPE_HANDSHAKE_REQUEST
 
 class HandshakeRequestSegment(Segment):
     HEADER_FORMAT = "!B B H B H 4s"

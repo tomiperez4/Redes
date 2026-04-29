@@ -4,8 +4,9 @@ from lib.server.client_handler import ClientHandler
 from lib.segments.handshake_error_segment import HandshakeErrorSegment
 from lib.segments.handshake_response_segment import HandshakeResponseSegment
 from lib.segments.segment import Segment
-from lib.server.constants import BUF_SIZE, MAX_CLIENTS, CLIENT_TYPE_UPLOAD, MAX_STORAGE_SIZE, MAX_FILE_SIZE, \
-    CLIENT_TYPE_DOWNLOAD
+from lib.constants.server_constants import *
+from lib.constants.client_constants import *
+from lib.constants.socket_constants import BUFFER_SIZE
 import math
 import os
 
@@ -23,7 +24,7 @@ class ClientListener:
         self.log.info("Listening for new clients")
         while True:
             try:
-                raw, address = self.socket.recvfrom(BUF_SIZE)
+                raw, address = self.socket.recvfrom(BUFFER_SIZE)
                 self.log.debug(f"Packet received from {address}")
                 segment = Segment.from_bytes(raw)
                 file_size = 0
@@ -77,12 +78,12 @@ class ClientListener:
                 handler.start()
 
             except Exception as error:
-                self.log.warning(f"Listener error: {error}")
+                self.log.error(f"Listener error: {error}")
 
     def client_finished(self, address):
         with self.lock:
             del self.clients[address]
-            self.log.debug(f"Client finished (remaining: {len(self.clients)})")
+            self.log.info(f"Client finished (remaining: {len(self.clients)})")
 
     def release_storage(self, file_size):
         with self.storage_lock:

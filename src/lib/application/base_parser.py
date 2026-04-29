@@ -1,5 +1,5 @@
 import argparse
-from lib.application import constants
+from lib.constants import parser_constants as constants
 
 class BaseParser:
     def __init__(self):

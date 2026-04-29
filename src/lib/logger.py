@@ -1,44 +1,6 @@
-'''
-DEFAULT_LOGFILE = "app.log"
-
-class Logger:
-    def __init__(self, prefix, verbose=False, quiet=False, file_name=DEFAULT_LOGFILE):
-        self.verbose = verbose
-        self.quiet = quiet
-        self.prefix = prefix
-        self.file_name = file_name
-
-        if self.quiet:
-            self.verbose = False
-
-    @staticmethod
-    def write_file(message, file_name):
-        with open(file_name, "a") as f:
-            f.write(message + "\n")
-
-    def debug(self, message):
-        msg = f"[DEBUG] {self.prefix} - {message}"
-        if self.verbose:
-            print(msg)
-        self.write_file(msg, self.file_name)
-
-    def info(self, message):
-        msg = f"[INFO] {self.prefix} - {message}"
-        if not self.quiet:
-            print(msg)
-        self.write_file(msg, self.file_name)
-
-    def error(self, message):
-        msg = f"[ERROR] {self.prefix} - {message}"
-        print(msg)
-        self.write_file(msg, self.file_name)
-
-'''
 import logging
 import threading
-
-DEFAULT_LOGFILE = "app.log"
-
+import sys
 
 class Logger:
     _configured_loggers = {}
@@ -50,10 +12,11 @@ class Logger:
             with open(f, 'w') as _:
                 pass
 
-    def __init__(self, prefix, verbose=False, quiet=False, _internal_logger=None, log_file=DEFAULT_LOGFILE):
+    def __init__(self, prefix, log_file, verbose=False, quiet=False):
         self.prefix = prefix
         self.verbose = verbose
         self.quiet = quiet
+        self.log_file = log_file
 
         with Logger._lock:
             if log_file not in Logger._configured_loggers:
@@ -61,12 +24,22 @@ class Logger:
                 logger.setLevel(logging.DEBUG)
 
                 handler = logging.FileHandler(log_file, mode='a')
+                handler.setLevel(logging.DEBUG)
                 fmt = logging.Formatter('%(asctime)s - [%(prefix)s] - %(levelname)s - %(message)s')
                 handler.setFormatter(fmt)
                 logger.addHandler(handler)
 
-                if self.verbose:
-                    logger.addHandler(logging.StreamHandler())
+                if not self.quiet:
+                    console_handler = logging.StreamHandler(sys.stdout)
+                    console_fmt = logging.Formatter('[%(levelname)s] [%(prefix)s] %(message)s')
+                    console_handler.setFormatter(console_fmt)
+
+                    if self.verbose:
+                        console_handler.setLevel(logging.DEBUG)
+                    else:
+                        console_handler.setLevel(logging.INFO)
+
+                    logger.addHandler(console_handler)
 
                 Logger._configured_loggers[log_file] = logger
                 Logger._initialized = True
@@ -75,9 +48,7 @@ class Logger:
         self.adapter = logging.LoggerAdapter(base_logger, {'prefix': self.prefix})
 
     def clone(self, new_prefix):
-        """Crea una copia con un nuevo prefijo, manteniendo la configuración."""
-        # Pasamos el logger interno para que todos compartan el mismo canal
-        return Logger(new_prefix, self.verbose, self.quiet, self.adapter.logger)
+        return Logger(new_prefix, self.log_file, self.verbose, self.quiet)
 
     def debug(self, message):
         if self.verbose and not self.quiet:

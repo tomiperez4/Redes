@@ -1,0 +1,9 @@
+DEFAULT_PORT = 8080
+DEFAULT_HOST = "127.0.0.1"
+
+DEFAULT_STORAGE_PATH = "./storage"
+DEFAULT_UPLOAD_FILEPATH = "./lib/data/file.txt"
+DEFAULT_DOWNLOAD_FILEPATH = "./storage/file.txt"
+DEFAULT_FILENAME = "file.txt"
+
+DEFAULT_PROTOCOL = "sw"

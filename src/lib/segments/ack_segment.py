@@ -1,6 +1,6 @@
 import struct
-from lib.transport.segments.segment import Segment
-from lib.transport.segments.constants import TYPE_ACK
+from lib.segments.segment import Segment
+from lib.constants.segment_constants import TYPE_ACK
 
 class AckSegment(Segment):
     FORMAT = "!B B"  # type, ack

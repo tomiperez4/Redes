@@ -1,18 +1,14 @@
 import unittest
 import socket
 
-from lib.transport.segments.segment import (
+from lib.segments.segment import (
     Segment,
-    TYPE_ACK,
-    TYPE_DATA,
-    TYPE_HANDSHAKE_REQUEST,
-    TYPE_HANDSHAKE_RESPONSE,
 )
 
-from lib.transport.segments.ack_segment import AckSegment
-from lib.transport.segments.data_segment import DataSegment
-from lib.transport.segments.handshake_request_segment import HandshakeRequestSegment
-from lib.transport.segments.handshake_response_segment import HandshakeResponseSegment
+from lib.segments.ack_segment import AckSegment
+from lib.segments.data_segment import DataSegment
+from lib.segments.handshake_request_segment import HandshakeRequestSegment
+from lib.segments.handshake_response_segment import HandshakeResponseSegment
 
 
 class TestSegmentDispatch(unittest.TestCase):

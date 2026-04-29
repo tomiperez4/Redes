@@ -1,12 +1,14 @@
 import threading
 import socket
+import os
 
-from lib.transport.segments.handshake_response_segment import HandshakeResponseSegment
-from lib.transport.segments.segment import Segment
+from lib.segments.handshake_response_segment import HandshakeResponseSegment
+from lib.segments.segment import Segment
 from lib.transport.stop_and_wait import StopAndWait
 from lib.transport.go_back_n import GoBackN
-from lib.server.constants import (CLIENT_TYPE_UPLOAD, CLIENT_TYPE_DOWNLOAD, PROTOCOL_STOP_AND_WAIT, PROTOCOL_GO_BACK_N, BUF_SIZE)
-import os
+from lib.constants.client_constants import *
+from lib.constants.protocol_constants import PROTOCOL_STOP_AND_WAIT, PROTOCOL_GO_BACK_N
+from lib.constants.socket_constants import BUFFER_SIZE
 
 class ClientHandler(threading.Thread):
     def __init__(self, client_host, client_port, client_type, filename, size,
@@ -19,7 +21,6 @@ class ClientHandler(threading.Thread):
         self.client_type = client_type
         self.dest_file_path = "./storage/" + filename # cambiarlo
         self.size = size
-        self.protocol = None
         self.on_finish = on_finish
         self.release_storage = release_storage
         self.log = log
@@ -30,11 +31,11 @@ class ClientHandler(threading.Thread):
         elif protocol_id == PROTOCOL_GO_BACK_N:
             self.protocol = GoBackN(self.client_socket, self.log.clone("GO-BACK-N"))
         else:
+            self.log.error(f"Unknown protocol id: {protocol_id}")
             raise ValueError("Unknown protocol")
 
     def run(self):
         """Initializes handler and runs the specified command"""
-        self.log.info("Client handler started")
         address = (self.client_host, self.client_port)
 
         port = self.client_socket.getsockname()[1]
@@ -50,6 +51,7 @@ class ClientHandler(threading.Thread):
                 self.log.info("Downloading file...")
                 self.handle_download(address)
             else:
+                self.log.error(f"Unknown client type: {self.client_type}")
                 raise ValueError("Unknown client type")
         finally:
             self.on_finish((self.client_host, self.client_port))
@@ -64,7 +66,7 @@ class ClientHandler(threading.Thread):
     def handle_download(self, address):
         """Handles the DOWNLOAD operation"""
         while True:
-            raw, _ = self.client_socket.recvfrom(BUF_SIZE)
+            raw, _ = self.client_socket.recvfrom(BUFFER_SIZE)
             segment = Segment.from_bytes(raw)
 
             if segment.is_handshake_error_segment():

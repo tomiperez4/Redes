@@ -1,7 +1,6 @@
-#Clients id
+# Clients id
 CLIENT_TYPE_UPLOAD = 0
 CLIENT_TYPE_DOWNLOAD = 1
 
-#Protocols id
-PROTOCOL_STOP_AND_WAIT = 0
-PROTOCOL_GO_BACK_N = 1
+# Socket timeout para client. No se si tiene sentido tener esto separado del timeout de RDT, por las dudas lo dejo aca comentado
+# SKT_TIMEOUT = 2.0

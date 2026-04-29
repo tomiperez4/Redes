@@ -1,17 +1,12 @@
-import shutil
 import socket
+import shutil
 
-from lib.transport.segments.handshake_request_segment import HandshakeRequestSegment
-from lib.transport.segments.handshake_ready_segment import HandshakeReadySegment
-from lib.transport.segments.finished_segment import FinishedSegment
-from lib.server.client_handler import CLIENT_TYPE_DOWNLOAD
+from lib.segments.handshake_request_segment import HandshakeRequestSegment
+from lib.segments.handshake_ready_segment import HandshakeReadySegment
+from lib.segments.handshake_error_segment import HandshakeErrorSegment
+from lib.segments.finished_segment import FinishedSegment
+from lib.constants.client_constants import CLIENT_TYPE_DOWNLOAD
 from lib.client.client import Client
-from lib.transport.segments.handshake_error_segment import HandshakeErrorSegment
-
-
-def has_enough_space(file_size):
-    total, used, free = shutil.disk_usage(".")
-    return free >= file_size
 
 class DownloadClient(Client):
     def __init__(self, server_addr, server_port, verbose, quiet, protocol_id, dst_path, filename):
@@ -32,11 +27,12 @@ class DownloadClient(Client):
         result = self.handshake(h_packet)
         if result is None:
             return
+
         host, port, file_size = result
         handler_address = (host, port)
 
         if not has_enough_space(file_size):
-            self.log.warning("Not enough disk space. Rejecting download")
+            self.log.error("Not enough disk space. Rejecting download")
 
             error = HandshakeErrorSegment()
             self.skt.sendto(error.to_bytes(), handler_address)
@@ -46,11 +42,15 @@ class DownloadClient(Client):
         ready_packet = HandshakeReadySegment()
         try:
             self.skt.sendto(ready_packet.to_bytes(), handler_address)
-            self.log.info("Ready segment sent. Waiting data from server...")
+            self.log.debug("Ready segment sent. Waiting data from server...")
             self.rdt.receive(handler_address, self.dst_path)
         except Exception as error:
-            self.log.info(f"Connection lost: {error}. Sending FINISHED packet to server...")
+            self.log.debug(f"Connection lost: {error}. Sending FINISHED packet to server...")
             fin = FinishedSegment()
             self.skt.sendto(fin.to_bytes(), handler_address)
         finally:
             self.skt.close()
+
+def has_enough_space(file_size):
+    total, used, free = shutil.disk_usage(".")
+    return free >= file_size

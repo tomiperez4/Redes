@@ -1,8 +1,8 @@
 import socket
 
-from lib.transport.segments.handshake_request_segment import HandshakeRequestSegment
-from lib.transport.segments.finished_segment import FinishedSegment
-from lib.server.client_handler import CLIENT_TYPE_UPLOAD
+from lib.segments.handshake_request_segment import HandshakeRequestSegment
+from lib.segments.finished_segment import FinishedSegment
+from lib.constants.client_constants import CLIENT_TYPE_UPLOAD
 from lib.client.client import Client
 import os
 import math
@@ -43,7 +43,7 @@ class UploadClient(Client):
 
         try:
             self.rdt.send(handler_address, self.src_path)
-            self.log.info("Packet sent successfully")
+            self.log.debug("Packet sent successfully")
         except Exception as error:
             self.log.error(f"Connection lost: {error}. Sending FINISHED packet to server...")
             fin = FinishedSegment()

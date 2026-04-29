@@ -2,15 +2,13 @@ import os
 from lib.application.server_parser import ServerParser
 from lib.server.server import Server
 from lib.logger import Logger
-
-SERVER_LOG_FILE = "app.log"
-CLIENTS_LOG_FILE = "clients.log"
+from lib.constants.log_file_constants import *
 
 def main():
     parser = ServerParser()
     args = parser.parse()
     Logger.clear_session_logs([SERVER_LOG_FILE, CLIENTS_LOG_FILE])
-    log = Logger("SERVER", args.verbose, args.quiet)
+    log = Logger("SERVER", SERVER_LOG_FILE, args.verbose, args.quiet)
     storage_path = args.storage
     if not os.path.exists(storage_path):
         try:

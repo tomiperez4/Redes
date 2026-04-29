@@ -1,6 +1,6 @@
 import struct
-from lib.transport.segments.segment import Segment
-from lib.transport.segments.constants import TYPE_FINISHED
+from lib.segments.segment import Segment
+from lib.constants.segment_constants import TYPE_FINISHED
 
 class FinishedSegment(Segment):
     FORMAT = "!B"  # type
