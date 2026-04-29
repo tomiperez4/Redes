@@ -1,43 +1,25 @@
 import struct
 from lib.transport.segments.segment import Segment
-from lib.transport.segments.constants import TYPE_HANDSHAKE_RESPONSE
+from lib.transport.segments.constants import HSK_FLAG, HSK_TYPE_RESPONSE
 
 class HandshakeResponseSegment(Segment):
-    FORMAT = "!B H I"  # type, port, file size
-    SIZE = struct.calcsize(FORMAT)
+    PAYLOAD_FORMAT = "!HI"
 
-    def __init__(self, port, size):
-        self.port = port
-        self.size = size
+    def __init__(self, port, size, seq=0):
+        super().__init__(seq)
+        self.port, self.size = port, size
 
-    def to_bytes(self):
-        return struct.pack(
-            self.FORMAT,
-            TYPE_HANDSHAKE_RESPONSE,
-            self.port,
-            self.size
-        )
+    def get_flags(self):
+        return HSK_FLAG
+
+    def get_payload(self):
+        prefix = struct.pack("!B", HSK_TYPE_RESPONSE)
+        data = struct.pack(self.PAYLOAD_FORMAT, self.port, self.size)
+        return prefix + data
 
     @staticmethod
-    def from_bytes(data):
-        if len(data) < HandshakeResponseSegment.SIZE:
-            raise ValueError("Incomplete handshake response")
+    def from_payload(seq, data):
+        port, size = struct.unpack(HandshakeResponseSegment.PAYLOAD_FORMAT, data)
+        return HandshakeResponseSegment(seq, port, size)
 
-        type_, port, size = struct.unpack(
-            HandshakeResponseSegment.FORMAT,
-            data[:HandshakeResponseSegment.SIZE]
-        )
-
-        if type_ != TYPE_HANDSHAKE_RESPONSE:
-            raise ValueError("Not a handshake response")
-
-        return HandshakeResponseSegment(port, size)
-
-    def is_handshake_response_segment(self):
-        return True
-
-    def get_port(self):
-        return self.port
-
-    def get_size(self):
-        return self.size
+    def is_handshake_response_segment(self): return True

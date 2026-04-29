@@ -10,7 +10,7 @@ import socket as socket_module
 import time
 
 SEGMENT_SIZE = 1024
-MAX_PACKET_SIZE = SEGMENT_SIZE + DataSegment.HEADER_SIZE
+MAX_PACKET_SIZE = SEGMENT_SIZE + Segment.HEADER_SIZE
 TIMEOUT = 0.1
 
 # Modularizar, agregar retries

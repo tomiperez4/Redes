@@ -11,7 +11,7 @@ from lib.transport.rdt import ReliableProtocol
 from lib.logger import Logger
 
 SEGMENT_SIZE = 1024
-MAX_PACKET_SIZE = SEGMENT_SIZE + DataSegment.HEADER_SIZE
+MAX_PACKET_SIZE = SEGMENT_SIZE + Segment.HEADER_SIZE
 TIMEOUT = 0.5
 WINDOW_SIZE = 8
 MAX_SEQ = 256

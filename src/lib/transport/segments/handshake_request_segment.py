@@ -1,54 +1,29 @@
 import struct
 from lib.transport.segments.segment import Segment
-from lib.transport.segments.constants import TYPE_HANDSHAKE_REQUEST
+from lib.transport.segments.constants import HSK_FLAG, HSK_TYPE_REQUEST
 
 class HandshakeRequestSegment(Segment):
-    HEADER_FORMAT = "!B B H B H 4s"
-    # type, operation, protocol, size, reserved, port, host
-    HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
+    PAYLOAD_FORMAT = "!BBHBH4s"
 
-    def __init__(self, operation, protocol, size, port, host, filename):
-        self.operation = operation      # 0 = upload, 1 = download
-        self.protocol = protocol        # 0 = stop and wait, 1 = go back n
-        self.port = port
-        self.size = size                # Represents file size in MB
-        self.host = host
-        self.filename = filename
+    def __init__(self, operation, protocol, size, port, host, filename, seq=0):
+        super().__init__(seq)
+        self.operation, self.protocol, self.size = operation, protocol, size
+        self.port, self.host, self.filename = port, host, filename
 
-    def to_bytes(self):
-        header = struct.pack(
-            self.HEADER_FORMAT,
-            TYPE_HANDSHAKE_REQUEST,
-            self.operation,
-            self.protocol,
-            self.size,
-            self.port,
-            self.host
-        )
+    def get_flags(self):
+        return HSK_FLAG
 
-        filename_bytes = self.filename.encode("utf-8")
-        return header + filename_bytes
+    def get_payload(self):
+        prefix = struct.pack("!B", HSK_TYPE_REQUEST)
+        fixed = struct.pack(self.PAYLOAD_FORMAT, self.operation, self.protocol,
+                           self.size, self.port, self.host)
+        return prefix + fixed + self.filename.encode("utf-8")
 
     @staticmethod
-    def from_bytes(data):
-        if len(data) < HandshakeRequestSegment.HEADER_SIZE:
-            raise ValueError("Incomplete handshake request")
+    def from_payload(seq, data):
+        f_size = struct.calcsize(HandshakeRequestSegment.PAYLOAD_FORMAT)
+        fields = struct.unpack(HandshakeRequestSegment.PAYLOAD_FORMAT, data[:f_size])
+        name = data[f_size:].decode("utf-8")
+        return HandshakeRequestSegment(seq, *fields, name)
 
-        type_, operation, protocol, size, port, host = struct.unpack(
-            HandshakeRequestSegment.HEADER_FORMAT,
-            data[:HandshakeRequestSegment.HEADER_SIZE]
-        )
-
-        if type_ != TYPE_HANDSHAKE_REQUEST:
-            raise ValueError("Not a handshake request")
-
-        filename = data[HandshakeRequestSegment.HEADER_SIZE:]
-        filename = filename.decode("utf-8") if filename else None
-
-        return HandshakeRequestSegment(operation, protocol, size, port, host, filename)
-
-    def is_handshake_request_segment(self):
-        return True
-
-    def get_size(self):
-        return self.size
+    def is_handshake_request_segment(self): return True
