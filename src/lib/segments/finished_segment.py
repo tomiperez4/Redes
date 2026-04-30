@@ -1,20 +1,16 @@
-import struct
-from lib.segments.segment import Segment
-from lib.constants.segment_constants import TYPE_FINISHED
+from lib.transport.segments.segment import Segment
+from lib.transport.segments.constants import FIN_FLAG
 
 class FinishedSegment(Segment):
-    FORMAT = "!B"  # type
-    SIZE = struct.calcsize(FORMAT)
+    def __init__(self, seq=0):
+        super().__init__(seq)
 
-    def __init__(self):
-        pass
+    def get_flags(self):
+        return FIN_FLAG
 
-    def to_bytes(self):
-        return struct.pack(self.FORMAT, TYPE_FINISHED)
-
-    @staticmethod
-    def from_bytes(data):
-        return FinishedSegment()
+    def get_payload(self):
+        # Un paquete FIN suele no tener payload
+        return b""
 
     def is_finished(self):
         return True

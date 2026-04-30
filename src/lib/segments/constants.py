@@ -20,3 +20,13 @@ DOWNLOAD_MAX_RETRIES = 5
 
 SW_MAX_RETRIES = 10
 
+ACK_FLAG = 0x80  # 1000 0000
+HSK_FLAG = 0x40  # 0100 0000
+FIN_FLAG = 0x20  # 0010 0000
+MF_FLAG  = 0x10  # 0001 0000 (More Fragments)
+
+# Handshake Types (dentro del payload si HSK_FLAG está activo)
+HSK_TYPE_REQUEST  = 1
+HSK_TYPE_RESPONSE = 2
+HSK_TYPE_READY    = 3
+HSK_TYPE_ERROR    = 4

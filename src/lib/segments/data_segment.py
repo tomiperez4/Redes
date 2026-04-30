@@ -1,36 +1,16 @@
-import struct
-from lib.segments.segment import Segment
-from lib.constants.segment_constants import TYPE_DATA
+from lib.transport.segments.segment import Segment
+from lib.transport.segments.constants import MF_FLAG
 
 class DataSegment(Segment):
-    HEADER_FORMAT = "!B B B"  # type, seq_number, mf
-    HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
-
-    def __init__(self, seq, data, mf):
-        self.seq = seq
+    def __init__(self, seq, data, mf=False):
+        super().__init__(seq)
         self.data = data
         self.mf = mf
 
-    def to_bytes(self):
-        header = struct.pack(
-            self.HEADER_FORMAT,
-            TYPE_DATA,
-            self.seq,
-            self.mf
-        )
+    def get_flags(self):
+        return MF_FLAG if self.mf else 0
 
-        return header + self.data
+    def get_payload(self):
+        return self.data
 
-    @staticmethod
-    def from_bytes(data):
-        type_data, seq, mf = struct.unpack(
-            DataSegment.HEADER_FORMAT,
-            data[:DataSegment.HEADER_SIZE]
-        )
-
-        payload = data[DataSegment.HEADER_SIZE:]
-
-        return DataSegment(seq, payload, mf)
-
-    def is_data_segment(self):
-        return True
+    def is_data_segment(self): return True

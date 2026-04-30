@@ -1,28 +1,20 @@
-import struct
-from lib.segments.segment import Segment
-from lib.constants.segment_constants import TYPE_ACK
+from lib.transport.segments.segment import Segment
+from lib.transport.segments.constants import ACK_FLAG
+
 
 class AckSegment(Segment):
-    FORMAT = "!B B"  # type, ack
-    SIZE = struct.calcsize(FORMAT)
+    def __init__(self, ack_number):
+        super().__init__(ack_number)
+        self.ack = ack_number
 
-    def __init__(self, ack):
-        self.ack = ack
+    def get_flags(self):
+        return ACK_FLAG
 
-    def to_bytes(self):
-        return struct.pack(
-            self.FORMAT,
-            TYPE_ACK,
-            self.ack
-        )
-
-    @staticmethod
-    def from_bytes(raw):
-        type_, ack = struct.unpack(
-            AckSegment.FORMAT,
-            raw[:AckSegment.SIZE]
-        )
-        return AckSegment(ack)
+    def get_payload(self):
+        return b""
 
     def is_ack_segment(self):
         return True
+
+    def get_ack_number(self):
+        return self.ack
