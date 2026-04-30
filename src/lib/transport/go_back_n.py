@@ -15,17 +15,17 @@ from lib.constants.socket_constants import BUFFER_SIZE, MAX_PACKET_SIZE, TIMEOUT
 class GoBackN(ReliableProtocol):
     def __init__(self, socket, log):
         super().__init__(socket, log)
-        self.srtt = TIMEOUT
-        self.rttvar = TIMEOUT / 2
-        self.rto = TIMEOUT
+        self.estimated_rtt = TIMEOUT
+        self.dev_rtt = 0
+        self.timeout_interval = TIMEOUT
         self.sent_times = {}
 
     def _update_rto(self, sample_rtt):
         alpha, beta = 0.125, 0.25
-        self.srtt = (1 - alpha) * self.srtt + alpha * sample_rtt
-        self.rttvar = (1 - beta) * self.rttvar + beta * abs(self.srtt - sample_rtt)
-        self.rto = self.srtt + max(0.1, 4 * self.rttvar)
-        self.socket.settimeout(self.rto)
+        self.dev_rtt = (1 - beta) * self.dev_rtt + beta * abs(self.estimated_rtt - sample_rtt)
+        self.estimated_rtt = (1 - alpha) * self.estimated_rtt + alpha * sample_rtt
+        self.timeout_interval = self.estimated_rtt + 4 * self.dev_rtt
+        self.socket.settimeout(self.timeout_interval)
 
     def send(self, address, path):
         chunks = []
@@ -63,7 +63,7 @@ class GoBackN(ReliableProtocol):
 
                 if repeat_window.is_set():
                     repeat_window.clear()
-                    self.log.warning("Timeout ? sending window again")
+                    self.log.warning("Timeout. Sending window again")
                     with lock:
                         next_idx = base
 
@@ -97,7 +97,7 @@ class GoBackN(ReliableProtocol):
         def ack_receiver_thread():
             nonlocal base, next_idx
 
-            self.socket.settimeout(self.rto)
+            self.socket.settimeout(self.timeout_interval)
 
             while not done.is_set():
                 try:
@@ -141,12 +141,12 @@ class GoBackN(ReliableProtocol):
 
                 except socket_module.timeout:
                     # timeout, no se recibio el ack esperado, se setea el repeat_window para mandar la ventana
-                    self.log.warning(f"ACK timeout ({self.rto:.4f}s) ? signaling retransmission")
+                    self.log.warning(f"ACK timeout ({self.timeout_interval:.4f}s). Signaling retransmission")
 
                     with lock:
                         self.sent_times.clear()  # Karn: avoid RTT ambiguity
-                        self.rto = min(self.rto * 2, 8.0)  # Exponential backoff
-                        self.socket.settimeout(self.rto)
+                        self.timeout_interval = self.estimated_rtt + max(0.1, 4 * self.dev_rtt)  # Exponential backoff
+                        self.socket.settimeout(self.timeout_interval)
 
                     repeat_window.set()
                     send_allowed.set()
@@ -154,7 +154,7 @@ class GoBackN(ReliableProtocol):
         def _send_fin(fin_idx, address):
             fin_seq = fin_idx % MAX_SEQ
             pkt = DataSegment(fin_seq, b"", 0)
-            self.socket.settimeout(self.rto)
+            self.socket.settimeout(self.timeout_interval)
             while True:
                 self.socket.sendto(pkt.to_bytes(), address)
                 self.log.debug("FIN segment sent")
@@ -162,7 +162,7 @@ class GoBackN(ReliableProtocol):
                     raw, _ = self.socket.recvfrom(MAX_PACKET_SIZE)
                     seg = Segment.from_bytes(raw)
                     if seg.is_ack_segment() and seg.ack == fin_seq:
-                        self.log.debug("FIN ACK received ? connection closed")
+                        self.log.debug("FIN ACK received. Connection closed")
                         return
                 except socket_module.timeout:
                     self.log.warning("Timeout waiting for FIN ACK, retrying")

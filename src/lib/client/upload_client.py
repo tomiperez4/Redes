@@ -1,4 +1,5 @@
 import socket
+import time
 
 from lib.segments.handshake_request_segment import HandshakeRequestSegment
 from lib.segments.finished_segment import FinishedSegment
@@ -42,8 +43,12 @@ class UploadClient(Client):
         handler_address = (host, port)
 
         try:
+            start_time = time.time()
             self.rdt.send(handler_address, self.src_path)
+            end_time = time.time()
+            elapsed = end_time - start_time
             self.log.debug("Packet sent successfully")
+            self.log.info(f"Upload completed in {elapsed:.4f} seconds")
         except Exception as error:
             self.log.error(f"Connection lost: {error}. Sending FINISHED packet to server...")
             fin = FinishedSegment()

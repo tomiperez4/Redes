@@ -1,5 +1,6 @@
 import socket
 import shutil
+import time
 
 from lib.segments.handshake_request_segment import HandshakeRequestSegment
 from lib.segments.handshake_ready_segment import HandshakeReadySegment
@@ -43,7 +44,11 @@ class DownloadClient(Client):
         try:
             self.skt.sendto(ready_packet.to_bytes(), handler_address)
             self.log.debug("Ready segment sent. Waiting data from server...")
+            start_time = time.time()
             self.rdt.receive(handler_address, self.dst_path)
+            end_time = time.time()
+            elapsed = end_time - start_time
+            self.log.info(f"Upload completed in {elapsed:.4f} seconds")
         except Exception as error:
             self.log.debug(f"Connection lost: {error}. Sending FINISHED packet to server...")
             fin = FinishedSegment()
