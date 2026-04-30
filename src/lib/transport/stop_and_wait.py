@@ -5,7 +5,7 @@ from lib.transport.segments.data_segment import DataSegment
 from lib.transport.segments.handshake_ready_segment import HandshakeReadySegment
 from lib.transport.segments.segment import Segment
 from lib.transport.rdt import ReliableProtocol
-from lib.constants.protocol_constants import MAX_RETRIES
+from lib.constants.protocol_constants import MAX_RETRIES, ALPHA, BETA
 from lib.constants.socket_constants import BUFFER_SIZE, TIMEOUT, MAX_PACKET_SIZE
 import socket as socket_module
 import time
@@ -18,10 +18,9 @@ class StopAndWait(ReliableProtocol):
         self.timeout_interval = TIMEOUT
 
     def _update_rto(self, sample_rtt):
-        alpha, beta = 0.125, 0.25
-        self.estimated_rtt = (1 - alpha) * self.estimated_rtt + alpha * sample_rtt
-        self.dev_rtt = (1 - beta) * self.dev_rtt + beta * abs(self.estimated_rtt - sample_rtt)
-        self.timeout_interval = self.estimated_rtt + max(0.02, 4 * self.dev_rtt)
+        self.estimated_rtt = (1 - ALPHA) * self.estimated_rtt + ALPHA * sample_rtt
+        self.dev_rtt = (1 - BETA) * self.dev_rtt + BETA * abs(self.estimated_rtt - sample_rtt)
+        self.timeout_interval = self.estimated_rtt + 4 * self.dev_rtt
 
 # Send ---------------------------------------------------------------------------------------------------
     def send(self, address, path):
@@ -37,8 +36,8 @@ class StopAndWait(ReliableProtocol):
                         self.log.debug("End of file reached")
                         self._send_final_data_segment(seq, address)
                         return
-
                     self._reliable_send(seq, chunk, 1, address)
+                    seq = 1 - seq
         except Exception as error:
             self.log.error(f"Transfer failed: {error}")
             raise
@@ -101,7 +100,7 @@ class StopAndWait(ReliableProtocol):
 
     def _handle_timeout_backoff(self, retry_count):
         self.log.warning(f"Timeout... retry {retry_count}/{MAX_RETRIES}")
-        self.timeout_interval = min(self.timeout_interval * 2, 4.0)
+        self.timeout_interval = self.estimated_rtt + max(0.1, 4 * self.dev_rtt)
         self.socket.settimeout(self.timeout_interval)
 
 # Receive ------------------------------------------------------------------------------------------------
@@ -131,7 +130,8 @@ class StopAndWait(ReliableProtocol):
 
                         handshake_done = True
                         finished, expected_seq = self._process_data_packet(packet, expected_seq, address, output_file)
-
+                        if finished:
+                            break
                     except socket_module.timeout:
                         self.log.warning("Timeout waiting for packet... still listening")
                         continue

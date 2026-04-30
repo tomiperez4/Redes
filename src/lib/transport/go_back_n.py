@@ -8,7 +8,7 @@ from lib.transport.segments.data_segment import DataSegment
 from lib.transport.segments.handshake_ready_segment import HandshakeReadySegment
 from lib.transport.segments.segment import Segment
 from lib.transport.rdt import ReliableProtocol
-from lib.constants.protocol_constants import MAX_SEQ, WINDOW_SIZE
+from lib.constants.protocol_constants import MAX_SEQ, WINDOW_SIZE, ALPHA, BETA
 from lib.constants.socket_constants import BUFFER_SIZE, MAX_PACKET_SIZE, TIMEOUT
 
 
@@ -22,9 +22,8 @@ class GoBackN(ReliableProtocol):
         self.sent_times = {}
 
     def _update_rto(self, sample_rtt):
-        alpha, beta = 0.125, 0.25
-        self.dev_rtt = (1 - beta) * self.dev_rtt + beta * abs(self.estimated_rtt - sample_rtt)
-        self.estimated_rtt = (1 - alpha) * self.estimated_rtt + alpha * sample_rtt
+        self.estimated_rtt = (1 - ALPHA) * self.estimated_rtt + ALPHA * sample_rtt
+        self.dev_rtt = (1 - BETA) * self.dev_rtt + BETA * abs(self.estimated_rtt - sample_rtt)
         self.timeout_interval = self.estimated_rtt + 4 * self.dev_rtt
         self.socket.settimeout(self.timeout_interval)
 
@@ -193,7 +192,6 @@ class GoBackN(ReliableProtocol):
                     self.log.debug(f"Data segment received: seq={seg.seq} mf={seg.mf}")
 
                     if seg.seq == expected_seq:
-                        print(f"{expected_seq} -> {seg.seq}")
                         out.write(seg.data)
                         self.socket.sendto(AckSegment(expected_seq).to_bytes(), address)
                         self.log.debug(f"ACK sent: ack={expected_seq}")

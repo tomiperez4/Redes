@@ -49,6 +49,7 @@ class UploadClient(Client):
             elapsed = end_time - start_time
             self.log.debug("Packet sent successfully")
             self.log.info(f"Upload completed in {elapsed:.4f} seconds")
+            print(f"Upload completed in {elapsed:.4f} seconds")
         except Exception as error:
             self.log.error(f"Connection lost: {error}. Sending FINISHED packet to server...")
             fin = FinishedSegment()
