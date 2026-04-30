@@ -13,12 +13,14 @@ import time
 class StopAndWait(ReliableProtocol):
     def __init__(self, socket, log):
         super().__init__(socket, log)
-        self.estimated_rtt = TIMEOUT
+        self.estimated_rtt = -1
         self.dev_rtt = 0
         self.timeout_interval = TIMEOUT
 
     def _update_rto(self, sample_rtt):
         self.estimated_rtt = (1 - ALPHA) * self.estimated_rtt + ALPHA * sample_rtt
+        if self.estimated_rtt < 0:
+            self.estimated_rtt = sample_rtt
         self.dev_rtt = (1 - BETA) * self.dev_rtt + BETA * abs(self.estimated_rtt - sample_rtt)
         self.timeout_interval = self.estimated_rtt + 4 * self.dev_rtt
 
@@ -100,7 +102,7 @@ class StopAndWait(ReliableProtocol):
 
     def _handle_timeout_backoff(self, retry_count):
         self.log.warning(f"Timeout... retry {retry_count}/{MAX_RETRIES}")
-        self.timeout_interval = self.estimated_rtt + max(0.1, 4 * self.dev_rtt)
+        self.timeout_interval = self.estimated_rtt + 4 * self.dev_rtt
         self.socket.settimeout(self.timeout_interval)
 
 # Receive ------------------------------------------------------------------------------------------------

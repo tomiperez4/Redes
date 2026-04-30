@@ -16,13 +16,15 @@ from lib.constants.socket_constants import BUFFER_SIZE, MAX_PACKET_SIZE, TIMEOUT
 class GoBackN(ReliableProtocol):
     def __init__(self, socket, log):
         super().__init__(socket, log)
-        self.estimated_rtt = TIMEOUT
+        self.estimated_rtt = -1
         self.dev_rtt = 0
         self.timeout_interval = TIMEOUT
         self.sent_times = {}
 
     def _update_rto(self, sample_rtt):
         self.estimated_rtt = (1 - ALPHA) * self.estimated_rtt + ALPHA * sample_rtt
+        if self.estimated_rtt < 0:
+            self.estimated_rtt = sample_rtt
         self.dev_rtt = (1 - BETA) * self.dev_rtt + BETA * abs(self.estimated_rtt - sample_rtt)
         self.timeout_interval = self.estimated_rtt + 4 * self.dev_rtt
         self.socket.settimeout(self.timeout_interval)
