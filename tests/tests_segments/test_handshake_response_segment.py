@@ -1,5 +1,5 @@
 import unittest
-from lib.segments.handshake_response_segment import HandshakeResponseSegment
+from transport.segments.handshake_response_segment import HandshakeResponseSegment
 
 
 class TestHandshakeResponse(unittest.TestCase):

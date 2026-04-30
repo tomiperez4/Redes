@@ -1,9 +1,9 @@
 import os
 
-from lib.segments.ack_segment import AckSegment
-from lib.segments.data_segment import DataSegment
-from lib.segments.handshake_ready_segment import HandshakeReadySegment
-from lib.segments.segment import Segment
+from lib.transport.segments.ack_segment import AckSegment
+from lib.transport.segments.data_segment import DataSegment
+from lib.transport.segments.handshake_ready_segment import HandshakeReadySegment
+from lib.transport.segments.segment import Segment
 from lib.transport.rdt import ReliableProtocol
 from lib.constants.protocol_constants import MAX_RETRIES
 from lib.constants.socket_constants import BUFFER_SIZE, TIMEOUT, MAX_PACKET_SIZE
@@ -13,20 +13,19 @@ import time
 class StopAndWait(ReliableProtocol):
     def __init__(self, socket, log):
         super().__init__(socket, log)
-        # For dinamic RTO
-        self.srtt = TIMEOUT
-        self.rttvar = TIMEOUT / 2
-        self.rto = TIMEOUT
+        self.estimated_rtt = TIMEOUT
+        self.dev_rtt = 0
+        self.timeout_interval = TIMEOUT
 
     def _update_rto(self, sample_rtt):
         alpha, beta = 0.125, 0.25
-        self.srtt = (1 - alpha) * self.srtt + alpha * sample_rtt
-        self.rttvar = (1 - beta) * self.rttvar + beta * abs(self.srtt - sample_rtt)
-        self.rto = self.srtt + max(0.02, 4 * self.rttvar)  # At least 50ms to avoid agressive timeouts
+        self.estimated_rtt = (1 - alpha) * self.estimated_rtt + alpha * sample_rtt
+        self.dev_rtt = (1 - beta) * self.dev_rtt + beta * abs(self.estimated_rtt - sample_rtt)
+        self.timeout_interval = self.estimated_rtt + max(0.02, 4 * self.dev_rtt)
 
 # Send ---------------------------------------------------------------------------------------------------
     def send(self, address, path):
-        self.socket.settimeout(self.rto)
+        self.socket.settimeout(self.timeout_interval)
         seq = 0
 
         try:
@@ -97,13 +96,13 @@ class StopAndWait(ReliableProtocol):
 
     def _handle_rto_update(self, sample_rtt):
         self._update_rto(sample_rtt)
-        self.socket.settimeout(self.rto)
-        self.log.debug(f"New RTO: {self.rto:.4f}s")
+        self.socket.settimeout(self.timeout_interval)
+        self.log.debug(f"New RTO: {self.timeout_interval:.4f}s")
 
     def _handle_timeout_backoff(self, retry_count):
         self.log.warning(f"Timeout... retry {retry_count}/{MAX_RETRIES}")
-        self.rto = min(self.rto * 2, 4.0)
-        self.socket.settimeout(self.rto)
+        self.timeout_interval = min(self.timeout_interval * 2, 4.0)
+        self.socket.settimeout(self.timeout_interval)
 
 # Receive ------------------------------------------------------------------------------------------------
     def receive(self, address, output_path):

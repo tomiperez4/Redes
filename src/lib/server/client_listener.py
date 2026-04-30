@@ -1,9 +1,9 @@
 import threading
 
 from lib.server.client_handler import ClientHandler
-from lib.segments.handshake_error_segment import HandshakeErrorSegment
-from lib.segments.handshake_response_segment import HandshakeResponseSegment
-from lib.segments.segment import Segment
+from lib.transport.segments.handshake_error_segment import HandshakeErrorSegment
+from lib.transport.segments.handshake_response_segment import HandshakeResponseSegment
+from lib.transport.segments.segment import Segment
 from lib.constants.server_constants import *
 from lib.constants.client_constants import *
 from lib.constants.socket_constants import BUFFER_SIZE

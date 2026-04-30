@@ -1,6 +1,6 @@
 import unittest
-from lib.segments.finished_segment import FinishedSegment
-from lib.segments.segment import TYPE_FINISHED
+from transport.segments.finished_segment import FinishedSegment
+from transport.segments.segment import TYPE_FINISHED
 
 
 class TestFinishedSegment(unittest.TestCase):

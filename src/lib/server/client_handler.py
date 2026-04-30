@@ -2,8 +2,8 @@ import threading
 import socket
 import os
 
-from lib.segments.handshake_response_segment import HandshakeResponseSegment
-from lib.segments.segment import Segment
+from lib.transport.segments.handshake_response_segment import HandshakeResponseSegment
+from lib.transport.segments.segment import Segment
 from lib.transport.stop_and_wait import StopAndWait
 from lib.transport.go_back_n import GoBackN
 from lib.constants.client_constants import *

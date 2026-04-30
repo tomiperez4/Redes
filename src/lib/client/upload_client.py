@@ -1,8 +1,8 @@
 import socket
 import time
 
-from lib.segments.handshake_request_segment import HandshakeRequestSegment
-from lib.segments.finished_segment import FinishedSegment
+from lib.transport.segments.handshake_request_segment import HandshakeRequestSegment
+from lib.transport.segments.finished_segment import FinishedSegment
 from lib.constants.client_constants import CLIENT_TYPE_UPLOAD
 from lib.client.client import Client
 import os

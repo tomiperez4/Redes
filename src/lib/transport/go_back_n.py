@@ -3,10 +3,10 @@ import socket as socket_module
 import threading
 import time
 
-from lib.segments.ack_segment import AckSegment
-from lib.segments.data_segment import DataSegment
-from lib.segments.handshake_ready_segment import HandshakeReadySegment
-from lib.segments.segment import Segment
+from lib.transport.segments.ack_segment import AckSegment
+from lib.transport.segments.data_segment import DataSegment
+from lib.transport.segments.handshake_ready_segment import HandshakeReadySegment
+from lib.transport.segments.segment import Segment
 from lib.transport.rdt import ReliableProtocol
 from lib.constants.protocol_constants import MAX_SEQ, WINDOW_SIZE
 from lib.constants.socket_constants import BUFFER_SIZE, MAX_PACKET_SIZE, TIMEOUT
@@ -98,7 +98,10 @@ class GoBackN(ReliableProtocol):
                         for idx in range(base, next_idx):
                             if idx % MAX_SEQ == ack_seq:
                                 self._handle_update_rto(idx)
-                                advanced = self._manage_gbn_window(idx, base)
+                                if idx + 1 > base:
+                                    base = idx + 1
+                                    self.log.debug(f"Window advanced: base={base}")
+                                    advanced = True
                                 break
 
                     if advanced:
@@ -158,13 +161,6 @@ class GoBackN(ReliableProtocol):
             for i in to_del:
                 self.sent_times.pop(i, None)
 
-    def _manage_gbn_window(self, idx, base):
-        if idx + 1 > base:
-            base = idx + 1
-            self.log.debug(f"Window advanced: base={base}")
-            return True
-        return False
-
     def receive(self, address, output_path):
         handshake_done = False
         expected_seq = 0
@@ -197,6 +193,7 @@ class GoBackN(ReliableProtocol):
                     self.log.debug(f"Data segment received: seq={seg.seq} mf={seg.mf}")
 
                     if seg.seq == expected_seq:
+                        print(f"{expected_seq} -> {seg.seq}")
                         out.write(seg.data)
                         self.socket.sendto(AckSegment(expected_seq).to_bytes(), address)
                         self.log.debug(f"ACK sent: ack={expected_seq}")

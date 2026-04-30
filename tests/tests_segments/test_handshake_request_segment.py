@@ -1,6 +1,6 @@
 import unittest
 import socket
-from lib.segments.handshake_request_segment import HandshakeRequestSegment
+from transport.segments.handshake_request_segment import HandshakeRequestSegment
 
 
 class TestHandshakeRequest(unittest.TestCase):

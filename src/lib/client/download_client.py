@@ -2,10 +2,10 @@ import socket
 import shutil
 import time
 
-from lib.segments.handshake_request_segment import HandshakeRequestSegment
-from lib.segments.handshake_ready_segment import HandshakeReadySegment
-from lib.segments.handshake_error_segment import HandshakeErrorSegment
-from lib.segments.finished_segment import FinishedSegment
+from transport.segments.handshake_request_segment import HandshakeRequestSegment
+from transport.segments.handshake_ready_segment import HandshakeReadySegment
+from transport.segments.handshake_error_segment import HandshakeErrorSegment
+from transport.segments.finished_segment import FinishedSegment
 from lib.constants.client_constants import CLIENT_TYPE_DOWNLOAD
 from lib.client.client import Client
 
