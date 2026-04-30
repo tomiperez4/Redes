@@ -10,11 +10,10 @@ from lib.constants.socket_constants import BUFFER_SIZE, TIMEOUT, MAX_PACKET_SIZE
 import socket as socket_module
 import time
 
-# Modularizar, agregar retries
 class StopAndWait(ReliableProtocol):
     def __init__(self, socket, log):
         super().__init__(socket, log)
-        # Variables para RTO Dinámico
+        # For dinamic RTO
         self.srtt = TIMEOUT
         self.rttvar = TIMEOUT / 2
         self.rto = TIMEOUT
@@ -23,66 +22,90 @@ class StopAndWait(ReliableProtocol):
         alpha, beta = 0.125, 0.25
         self.srtt = (1 - alpha) * self.srtt + alpha * sample_rtt
         self.rttvar = (1 - beta) * self.rttvar + beta * abs(self.srtt - sample_rtt)
-        self.rto = self.srtt + max(0.02, 4 * self.rttvar)  # Mínimo 50ms para evitar timeouts agresivos
+        self.rto = self.srtt + max(0.02, 4 * self.rttvar)  # At least 50ms to avoid agressive timeouts
 
+# Send ---------------------------------------------------------------------------------------------------
     def send(self, address, path):
         self.socket.settimeout(self.rto)
         seq = 0
-        with open(path, "rb") as file:
-            while True:
-                chunk = file.read(BUFFER_SIZE)
 
-                if not chunk:
-                    self.log.debug("End of file reached")
-                    pkt = DataSegment(seq, b"", 0)
-                    while True:
-                        self.socket.sendto(pkt.to_bytes(), address)
-                        self.log.debug("End of file segment sent")
-                        try:
-                            raw, _ = self.socket.recvfrom(MAX_PACKET_SIZE)
-                            received = Segment.from_bytes(raw)
+        try:
+            with open(path, "rb") as file:
+                while True:
+                    chunk = file.read(BUFFER_SIZE)
 
-                            if isinstance(received, AckSegment) and received.ack == seq:
-                                self.log.debug("Received confirmation ACK segment. End connection")
-                                return
+                    if not chunk:
+                        self.log.debug("End of file reached")
+                        self._send_final_data_segment(seq, address)
+                        return
 
-                        except socket_module.timeout:
-                            self.log.warning("Timeout while waiting for ACK segment. Retry")
-                            continue
+                    self._reliable_send(seq, chunk, 1, address)
+        except Exception as error:
+            self.log.error(f"Transfer failed: {error}")
+            raise
 
-                pkt = DataSegment(seq, chunk, 1)
-                retransmitted = False
-                retries = 0
+    def _reliable_send(self, seq, data, mf, address):
+        pkt = DataSegment(seq, data, mf)
+        retries = 0
+        retransmitted = False
 
-                while retries < MAX_RETRIES:
-                    start_time = time.time()
-                    self.socket.sendto(pkt.to_bytes(), address)
-                    self.log.debug("Data segment sent")
-                    try:
-                        raw, _ = self.socket.recvfrom(MAX_PACKET_SIZE)
-                        received = Segment.from_bytes(raw)
-                        if received.is_ack_segment() and received.ack == seq:
-                            # Solo actualizamos RTO si no fue una retransmisión (Karn)
-                            if not retransmitted:
-                                sample_rtt = time.time() - start_time
-                                self._update_rto(sample_rtt)
-                                self.socket.settimeout(self.rto)
-                                self.log.debug(f"New RTO: {self.rto:.4f}s")
+        while retries < MAX_RETRIES:
+            start_time = time.time()
+            self.socket.sendto(pkt.to_bytes(), address)
+            self.log.debug(f"Segment sent (seq={seq}, mf={mf})")
 
-                            self.log.debug("Received ACK segment. Equals expected")
-                            seq = 1 - seq
-                            break
-                        self.log.debug("Received ACK segment. Does not equals expected")
-                    except socket_module.timeout:
-                        retries += 1
-                        self.log.warning(f"Timeout... retry {retries}/{MAX_RETRIES}")
-                        retransmitted = True
-                        self.rto = min(self.rto * 2, 4.0)
-                        self.socket.settimeout(self.rto)
-                        continue
-                if retries == MAX_RETRIES:
-                    raise Exception("Max retries reached. Connection lost")
+            try:
+                if self._wait_for_specific_ack(seq):
+                    if not retransmitted:
+                        self._handle_rto_update(time.time() - start_time)
+                    return True
 
+            except socket_module.timeout:
+                retries += 1
+                retransmitted = True
+                self._handle_timeout_backoff(retries)
+
+        raise Exception("Max retries reached. Connection lost")
+
+    def _wait_for_specific_ack(self, expected_seq):
+        raw, _ = self.socket.recvfrom(MAX_PACKET_SIZE)
+        received = Segment.from_bytes(raw)
+
+        if received.is_ack_segment() and received.ack == expected_seq:
+            self.log.debug("Received ACK segment matches expected seq")
+            return True
+
+        self.log.debug("Received ACK segment does not match")
+        return False
+
+    def _send_final_data_segment(self, seq, address):
+        pkt = DataSegment(seq, b"", 0)
+        while True:
+            self.socket.sendto(pkt.to_bytes(), address)
+            self.log.debug("End of file segment sent")
+            try:
+                raw, _ = self.socket.recvfrom(MAX_PACKET_SIZE)
+                received = Segment.from_bytes(raw)
+
+                if received.is_ack_segment() and received.ack == seq:
+                    self.log.debug("Received confirmation ACK segment. End connection")
+                    return
+
+            except socket_module.timeout:
+                self.log.warning("Timeout while waiting for ACK segment. Retry")
+                continue
+
+    def _handle_rto_update(self, sample_rtt):
+        self._update_rto(sample_rtt)
+        self.socket.settimeout(self.rto)
+        self.log.debug(f"New RTO: {self.rto:.4f}s")
+
+    def _handle_timeout_backoff(self, retry_count):
+        self.log.warning(f"Timeout... retry {retry_count}/{MAX_RETRIES}")
+        self.rto = min(self.rto * 2, 4.0)
+        self.socket.settimeout(self.rto)
+
+# Receive ------------------------------------------------------------------------------------------------
     def receive(self, address, output_path):
         handshake_done = False
         expected_seq = 0
@@ -96,15 +119,11 @@ class StopAndWait(ReliableProtocol):
                         packet = Segment.from_bytes(raw)
 
                         if packet.is_finished():
-                            self.log.debug("Client disconnected (FINISHED PACKET RECEIVED).")
-                            os.remove(temp_file)
+                            self._handle_early_disconnect(temp_file)
                             return
 
                         if packet.is_handshake_response_segment():
-                            if not handshake_done and address == addr:
-                                self.log.debug("Duplicated handshake response segment received. Re-sending READY segment")
-                                ready_pkt = HandshakeReadySegment()
-                                self.socket.sendto(ready_pkt.to_bytes(), address)
+                            self._handle_handshake_retry(handshake_done, address, addr)
                             continue
 
                         if not packet.is_data_segment():
@@ -112,29 +131,52 @@ class StopAndWait(ReliableProtocol):
                             continue
 
                         handshake_done = True
-                        self.log.debug("Data segment received")
-                        if packet.seq == expected_seq:
-                            self.log.debug("Packets sequence numbers match")
-                            data = packet.data
-                            output_file.write(data)
-                            ack = AckSegment(expected_seq)
-                            self.socket.sendto(ack.to_bytes(), address)
-                            self.log.debug("ACK segment sent")
-                            expected_seq = 1 - expected_seq
-                            if packet.mf == 0:
-                                self.log.debug("Final data segment received. End connection")
-                                break
-                        else:
-                            self.log.warning("Packet sequence numbers do not match. Letting sender know")
-                            ack = AckSegment(1 - expected_seq)
-                            self.socket.sendto(ack.to_bytes(), address)
-                            self.log.debug("ACK segment sent")
+                        finished, expected_seq = self._process_data_packet(packet, expected_seq, address, output_file)
+
                     except socket_module.timeout:
                         self.log.warning("Timeout waiting for packet... still listening")
                         continue
             os.rename(temp_file, output_path)
             self.log.info("File transfer complete")
         except Exception as error:
-            self.log.error(f"File transfer failed: {error}")
-            if os.path.exists(temp_file):
-                os.remove(temp_file)
+            self._cleanup_error(temp_file, error)
+
+    def _handle_early_disconnect(self, temp_file):
+        self.log.debug("Client disconnected (FINISHED PACKET RECEIVED).")
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
+
+    def _handle_handshake_retry(self, handshake_done, target_addr, sender_addr):
+        if not handshake_done and target_addr == sender_addr:
+            self.log.debug("Duplicated handshake response. Re-sending READY")
+            ready_pkt = HandshakeReadySegment()
+            self.socket.sendto(ready_pkt.to_bytes(), target_addr)
+
+    def _process_data_packet(self, packet, expected_seq, address, output_file):
+        self.log.debug(f"Data segment received (Seq: {packet.seq})")
+
+        if packet.seq == expected_seq:
+            self.log.debug("Packets sequence numbers match")
+            output_file.write(packet.data)
+            self._send_ack(expected_seq, address)
+
+            new_expected_seq = 1 - expected_seq
+
+            if packet.mf == 0:
+                self.log.debug("Final data segment received.")
+                return True, new_expected_seq
+            return False, new_expected_seq
+        else:
+            self.log.warning("Sequence mismatch. Sending ACK for previous packet")
+            self._send_ack(1 - expected_seq, address)
+            return False, expected_seq
+
+    def _send_ack(self, seq, address):
+        ack = AckSegment(seq)
+        self.socket.sendto(ack.to_bytes(), address)
+        self.log.debug(f"ACK {seq} sent")
+
+    def _cleanup_error(self, temp_file, error):
+        self.log.error(f"File transfer failed: {error}")
+        if os.path.exists(temp_file):
+            os.remove(temp_file)

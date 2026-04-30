@@ -5,6 +5,7 @@ import time
 
 from lib.segments.ack_segment import AckSegment
 from lib.segments.data_segment import DataSegment
+from lib.segments.handshake_ready_segment import HandshakeReadySegment
 from lib.segments.segment import Segment
 from lib.transport.rdt import ReliableProtocol
 from lib.constants.protocol_constants import MAX_SEQ, WINDOW_SIZE
@@ -28,38 +29,23 @@ class GoBackN(ReliableProtocol):
         self.socket.settimeout(self.timeout_interval)
 
     def send(self, address, path):
-        chunks = []
-        with open(path, "rb") as f:
-            while True:
-                chunk = f.read(BUFFER_SIZE)
-                if not chunk:
-                    break
-                chunks.append(chunk)
+        chunks, total = self.read_file_to_mem(path)
 
-        total = len(chunks)
-        self.log.debug(f"File loaded: {total} chunks")
-
-        # python maneja de una variables atomicas para lectura
         base = 0
         next_idx = 0
         lock = threading.Lock()
-
         send_allowed = threading.Event()
-        send_allowed.set()
-
         repeat_window = threading.Event()
-
         done = threading.Event()
+
+        send_allowed.set()
 
         def sender_thread():
             nonlocal base, next_idx
 
-            while True:
+            while not done.is_set():
                 send_allowed.wait()
                 send_allowed.clear()
-
-                if done.is_set():
-                    break
 
                 if repeat_window.is_set():
                     repeat_window.clear()
@@ -86,17 +72,13 @@ class GoBackN(ReliableProtocol):
                     self.log.debug(f"Sent segment idx={idx} seq={seq}")
 
                 with lock:
-                    all_sent = (next_idx >= total)
-                    window_clear = (base >= total)
-
-                if all_sent and window_clear:
-                    _send_fin(base, address)
-                    done.set()
-                    break
+                    if next_idx >= total and base >= total:
+                        self._send_fin(base, address)
+                        done.set()
+                        break
 
         def ack_receiver_thread():
             nonlocal base, next_idx
-
             self.socket.settimeout(self.timeout_interval)
 
             while not done.is_set():
@@ -115,20 +97,8 @@ class GoBackN(ReliableProtocol):
                         advanced = False
                         for idx in range(base, next_idx):
                             if idx % MAX_SEQ == ack_seq:
-                                # Update Dynamic RTO
-                                if idx in self.sent_times:
-                                    sample_rtt = time.time() - self.sent_times[idx]
-                                    self._update_rto(sample_rtt)
-
-                                    # Clean up confirmation times
-                                    to_del = [i for i in self.sent_times if i <= idx]
-                                    for i in to_del:
-                                        self.sent_times.pop(i, None)
-
-                                if idx + 1 > base:
-                                    base = idx + 1
-                                    self.log.debug(f"Window advanced: base={base}")
-                                    advanced = True
+                                self._handle_update_rto(idx)
+                                advanced = self._manage_gbn_window(idx, base)
                                 break
 
                     if advanced:
@@ -140,7 +110,6 @@ class GoBackN(ReliableProtocol):
                             break
 
                 except socket_module.timeout:
-                    # timeout, no se recibio el ack esperado, se setea el repeat_window para mandar la ventana
                     self.log.warning(f"ACK timeout ({self.timeout_interval:.4f}s). Signaling retransmission")
 
                     with lock:
@@ -151,23 +120,7 @@ class GoBackN(ReliableProtocol):
                     repeat_window.set()
                     send_allowed.set()
 
-        def _send_fin(fin_idx, address):
-            fin_seq = fin_idx % MAX_SEQ
-            pkt = DataSegment(fin_seq, b"", 0)
-            self.socket.settimeout(self.timeout_interval)
-            while True:
-                self.socket.sendto(pkt.to_bytes(), address)
-                self.log.debug("FIN segment sent")
-                try:
-                    raw, _ = self.socket.recvfrom(MAX_PACKET_SIZE)
-                    seg = Segment.from_bytes(raw)
-                    if seg.is_ack_segment() and seg.ack == fin_seq:
-                        self.log.debug("FIN ACK received. Connection closed")
-                        return
-                except socket_module.timeout:
-                    self.log.warning("Timeout waiting for FIN ACK, retrying")
 
-        # daemon es para que si muere el thread padre, se mata a los threads hijos, y no queden colgados
         t_sender = threading.Thread(target=sender_thread, daemon=True)
         t_acks = threading.Thread(target=ack_receiver_thread, daemon=True)
 
@@ -178,6 +131,39 @@ class GoBackN(ReliableProtocol):
         t_acks.join()
 
         self.log.debug("Send complete")
+
+    def _send_fin(self, fin_idx, address):
+        fin_seq = fin_idx % MAX_SEQ
+        pkt = DataSegment(fin_seq, b"", 0)
+        self.socket.settimeout(self.timeout_interval)
+        while True:
+            self.socket.sendto(pkt.to_bytes(), address)
+            self.log.debug("FIN segment sent")
+            try:
+                raw, _ = self.socket.recvfrom(MAX_PACKET_SIZE)
+                seg = Segment.from_bytes(raw)
+                if seg.is_ack_segment() and seg.ack == fin_seq:
+                    self.log.debug("FIN ACK received. Connection closed")
+                    return
+            except socket_module.timeout:
+                self.log.warning("Timeout waiting for FIN ACK, retrying")
+
+    def _handle_update_rto(self, idx):
+        if idx in self.sent_times:
+            sample_rtt = time.time() - self.sent_times[idx]
+            self._update_rto(sample_rtt)
+
+            # Clean up confirmation times
+            to_del = [i for i in self.sent_times if i <= idx]
+            for i in to_del:
+                self.sent_times.pop(i, None)
+
+    def _manage_gbn_window(self, idx, base):
+        if idx + 1 > base:
+            base = idx + 1
+            self.log.debug(f"Window advanced: base={base}")
+            return True
+        return False
 
     def receive(self, address, output_path):
         handshake_done = False
@@ -196,14 +182,13 @@ class GoBackN(ReliableProtocol):
                         os.remove(temp_file)
                         return
 
-                    '''
                     if seg.is_handshake_response_segment():
                         if not handshake_done and address == addr:
                             self.log.debug("Duplicated handshake response segment received. Re-sending READY segment")
                             ready_pkt = HandshakeReadySegment()
                             self.socket.sendto(ready_pkt.to_bytes(), address)
                         continue
-                    '''
+
                     if not seg.is_data_segment():
                         self.log.warning("Unexpected segment type, ignoring")
                         continue
@@ -213,8 +198,7 @@ class GoBackN(ReliableProtocol):
 
                     if seg.seq == expected_seq:
                         out.write(seg.data)
-                        ack = AckSegment(expected_seq)
-                        self.socket.sendto(ack.to_bytes(), address)
+                        self.socket.sendto(AckSegment(expected_seq).to_bytes(), address)
                         self.log.debug(f"ACK sent: ack={expected_seq}")
                         last_ack = expected_seq
 
@@ -229,8 +213,7 @@ class GoBackN(ReliableProtocol):
                             f"expected={expected_seq}"
                         )
                         if last_ack is not None:
-                            ack = AckSegment(last_ack)
-                            self.socket.sendto(ack.to_bytes(), address)
+                            self.socket.sendto(AckSegment(last_ack).to_bytes(), address)
                             self.log.debug(f"Re-sent last ACK: ack={last_ack}")
             os.rename(temp_file, output_path)
             self.log.debug("File transfer complete")
@@ -238,3 +221,16 @@ class GoBackN(ReliableProtocol):
             self.log.error(f"File transfer failed: {error}")
             if os.path.exists(temp_file):
                 os.remove(temp_file)
+
+    def read_file_to_mem(self, path):
+        chunks = []
+        with open(path, "rb") as f:
+            while True:
+                chunk = f.read(BUFFER_SIZE)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+
+        total = len(chunks)
+        self.log.debug(f"File loaded: {total} chunks")
+        return chunks, total
