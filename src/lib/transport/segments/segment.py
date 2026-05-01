@@ -20,7 +20,6 @@ class Segment(ABC):
         pass
 
     def to_bytes(self):
-        # Cada clase responde sus propias flags según su tipo
         header = struct.pack(self.HEADER_FORMAT, self.seq, self.get_flags())
         return header + self.get_payload()
 
@@ -32,8 +31,12 @@ class Segment(ABC):
         seq, flags = struct.unpack(Segment.HEADER_FORMAT, data[:Segment.HEADER_SIZE])
         payload = data[Segment.HEADER_SIZE:]
 
-        if flags & HSK_FLAG:
-            return Segment._parse_handshake(seq, flags, payload)
+        if flags & SYN_ACK_FLAG:
+            from lib.transport.segments.synack import SynackSegment
+            return SynackSegment.from_payload(seq, payload)
+        if flags & SYN_FLAG:
+            from lib.transport.segments.syn_segment import SynSegment
+            return SynSegment.from_payload(seq, payload)
         if flags & ACK_FLAG:
             from lib.transport.segments.ack_segment import AckSegment
             return AckSegment(seq)
@@ -43,24 +46,6 @@ class Segment(ABC):
 
         from lib.transport.segments.data_segment import DataSegment
         return DataSegment(seq, payload, bool(flags & MF_FLAG))
-
-    @staticmethod
-    def _parse_handshake(seq, flags, payload):
-        hsk_type = payload[0]
-        inner = payload[1:]
-        if hsk_type == HSK_TYPE_REQUEST:
-            from lib.transport.segments.handshake_request_segment import HandshakeRequestSegment
-            return HandshakeRequestSegment.from_payload(seq, inner)
-        elif hsk_type == HSK_TYPE_RESPONSE:
-            from lib.transport.segments.handshake_response_segment import HandshakeResponseSegment
-            return HandshakeResponseSegment.from_payload(seq, inner)
-        elif hsk_type == HSK_TYPE_READY:
-            from lib.transport.segments.handshake_ready_segment import HandshakeReadySegment
-            return HandshakeReadySegment(seq)
-        elif hsk_type == HSK_TYPE_ERROR:
-            from lib.transport.segments.handshake_error_segment import HandshakeErrorSegment
-            return HandshakeErrorSegment(seq)
-        raise ValueError("Unknown HSK type")
 
     # Helpers de interfaz
     def is_data_segment(self):
@@ -82,4 +67,10 @@ class Segment(ABC):
         return False
 
     def is_finished(self):
+        return False
+
+    def is_syn_segment(self):
+        return False
+
+    def is_synack_segment(self):
         return False
