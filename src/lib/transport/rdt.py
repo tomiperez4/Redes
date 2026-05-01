@@ -22,6 +22,22 @@ class ReliableProtocol(ABC):
         self.timeout_interval = self.estimated_rtt + 4 * self.dev_rtt
         self.socket.settimeout(self.timeout_interval)
 
+    @abstractmethod
+    def start(self, address):
+        pass
+
+    @abstractmethod
+    def close(self):
+        pass
+
+    @abstractmethod
+    def send(self, data):
+        pass
+
+    @abstractmethod
+    def recv(self):
+        pass
+
     #@abstractmethod
     #def send(self, address, path):
     #    pass
