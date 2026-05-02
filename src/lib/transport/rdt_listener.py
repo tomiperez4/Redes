@@ -30,7 +30,7 @@ class RdtListener:
                     port = self.clients[address]
                     h_response = SynackSegment(port)
                     self.skt.sendto(h_response.to_bytes(), address)
-                    return None
+                    return None, None
             if len(self.clients) >= MAX_CLIENTS:
                 self._ack_error("Client limit reached", address)
                 return None
