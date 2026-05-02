@@ -1,60 +1,36 @@
-import socket
 import shutil
-import time
+import struct
 
-from transport.segments.handshake_request_segment import HandshakeRequestSegment
-from transport.segments.handshake_ready_segment import HandshakeReadySegment
-from transport.segments.handshake_error_segment import HandshakeErrorSegment
-from transport.segments.finished_segment import FinishedSegment
+from lib.application.file_manager import FileManager
+from lib.transport.rdt_socket import RdtSocket
 from lib.constants.client_constants import CLIENT_TYPE_DOWNLOAD
 from lib.client.client import Client
 
+
 class DownloadClient(Client):
-    def __init__(self, server_addr, server_port, verbose, quiet, protocol_id, dst_path, filename):
+    def __init__(self, server_addr, server_port, verbose,
+                 quiet, protocol_id, dst_path, filename):
         super().__init__(server_addr, server_port, verbose, quiet, protocol_id)
         self.dst_path = dst_path
         self.filename = filename
 
+    def connect_to_server(self):
+        size_in_bytes = 0
+        rdt = RdtSocket(self.skt, self.protocol_id, self.log)
+        self.protocol = rdt.connect(self.server_dir)
+
+        payload = struct.pack(
+            "!BQ",
+            CLIENT_TYPE_DOWNLOAD,
+            size_in_bytes,
+        ) + self.filename.encode('utf-8')
+
+        return self._negotiate_transaction(self.protocol, payload)
+
     def run_process(self):
-        h_packet = HandshakeRequestSegment(
-            operation = CLIENT_TYPE_DOWNLOAD,
-            protocol = self.protocol_id,
-            port = int(self.server_dir[1]),
-            host = socket.inet_aton(self.server_dir[0]),
-            filename = self.filename,
-            size = 0
-        )
-
-        result = self.handshake(h_packet)
-        if result is None:
-            return
-
-        host, port, file_size = result
-        handler_address = (host, port)
-
-        if not has_enough_space(file_size):
-            self.log.error("Not enough disk space. Rejecting download")
-
-            error = HandshakeErrorSegment()
-            self.skt.sendto(error.to_bytes(), handler_address)
-            self.skt.close()
-            return
-
-        ready_packet = HandshakeReadySegment()
-        try:
-            self.skt.sendto(ready_packet.to_bytes(), handler_address)
-            self.log.debug("Ready segment sent. Waiting data from server...")
-            start_time = time.time()
-            self.rdt.receive(handler_address, self.dst_path)
-            end_time = time.time()
-            elapsed = end_time - start_time
-            self.log.info(f"Upload completed in {elapsed:.4f} seconds")
-        except Exception as error:
-            self.log.debug(f"Connection lost: {error}. Sending FINISHED packet to server...")
-            fin = FinishedSegment()
-            self.skt.sendto(fin.to_bytes(), handler_address)
-        finally:
-            self.skt.close()
+        self.connect_to_server()
+        file_manager = FileManager(self.protocol, self.log)
+        file_manager.receive_file(self.dst_path)
 
 def has_enough_space(file_size):
     total, used, free = shutil.disk_usage(".")

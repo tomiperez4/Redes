@@ -2,6 +2,7 @@ import struct
 from lib.transport.segments.segment import Segment
 from lib.transport.segments.constants import SYN_ACK_FLAG
 
+
 class SynackSegment(Segment):
     PAYLOAD_FORMAT = "!H"
 
@@ -19,8 +20,7 @@ class SynackSegment(Segment):
     @staticmethod
     def from_payload(seq, data):
         f_size = struct.calcsize(SynackSegment.PAYLOAD_FORMAT)
-        fields = struct.unpack(SynackSegment.PAYLOAD_FORMAT, data[:f_size])
-        port = fields
+        port = struct.unpack(SynackSegment.PAYLOAD_FORMAT, data[:f_size])[0]
         return SynackSegment(
             port,
             seq

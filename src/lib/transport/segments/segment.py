@@ -27,16 +27,15 @@ class Segment(ABC):
     def from_bytes(data):
         if len(data) < Segment.HEADER_SIZE:
             raise ValueError("Data too short")
-
-        seq, flags = struct.unpack(Segment.HEADER_FORMAT, data[:Segment.HEADER_SIZE])
+        seq, flags = struct.unpack(
+            Segment.HEADER_FORMAT, data[:Segment.HEADER_SIZE])
         payload = data[Segment.HEADER_SIZE:]
-
-        if flags & SYN_ACK_FLAG:
-            from lib.transport.segments.synack import SynackSegment
-            return SynackSegment.from_payload(seq, payload)
         if flags & SYN_FLAG:
             from lib.transport.segments.syn_segment import SynSegment
             return SynSegment.from_payload(seq, payload)
+        if flags & SYN_ACK_FLAG:
+            from lib.transport.segments.synack import SynackSegment
+            return SynackSegment.from_payload(seq, payload)
         if flags & ACK_FLAG:
             from lib.transport.segments.ack_segment import AckSegment
             return AckSegment(seq)
@@ -54,18 +53,6 @@ class Segment(ABC):
     def is_ack_segment(self):
         return False
 
-    def is_handshake_request_segment(self):
-        return False
-
-    def is_handshake_response_segment(self):
-        return False
-
-    def is_handshake_ready_segment(self):
-        return False
-
-    def is_handshake_error_segment(self):
-        return False
-
     def is_finished(self):
         return False
 
@@ -73,4 +60,7 @@ class Segment(ABC):
         return False
 
     def is_synack_segment(self):
+        return False
+
+    def is_finished_segment(self):
         return False

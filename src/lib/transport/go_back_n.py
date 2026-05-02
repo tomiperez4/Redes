@@ -9,6 +9,7 @@ from lib.transport.segments.segment import Segment
 from lib.transport.rdt import ReliableProtocol
 from lib.constants.protocol_constants import MAX_SEQ, WINDOW_SIZE
 from lib.constants.socket_constants import MAX_PACKET_SIZE
+from lib.transport.segments.finished_segment import FinishedSegment
 
 
 class GoBackN(ReliableProtocol):
@@ -22,6 +23,7 @@ class GoBackN(ReliableProtocol):
         # cositas para el sender
         self.base = 0
         self.next_idx = 0
+        self.fin_seq = None
         self.sent_times = {}
         self.address = None
 
@@ -35,8 +37,10 @@ class GoBackN(ReliableProtocol):
         self.repeat_event = threading.Event()
 
         # Threads
-        self.sender_thread = threading.Thread(target=self._sender_loop, daemon=True)
-        self.receiver_thread = threading.Thread(target=self._receiver_loop, daemon=True)
+        self.sender_thread = threading.Thread(
+            target=self._sender_loop, daemon=True)
+        self.receiver_thread = threading.Thread(
+            target=self._receiver_loop, daemon=True)
 
         self.sender_thread.start()
         self.receiver_thread.start()
@@ -48,7 +52,9 @@ class GoBackN(ReliableProtocol):
 
     def send(self, data):
         with self.lock:
-            self.send_buffer.append(data)
+            seq = len(self.send_buffer) % MAX_SEQ
+            pkt = DataSegment(seq, data)
+            self.send_buffer.append(pkt)
         self.send_event.set()
 
     def recv(self):
@@ -59,12 +65,22 @@ class GoBackN(ReliableProtocol):
         with self.lock:
             return self.receive_queue.popleft()
 
+    def is_done(self):
+        return self.done
+
     def close(self):
-        self.closed = True
+        with self.lock:
+            seq = len(self.send_buffer) % MAX_SEQ
+            pkt = FinishedSegment(seq)
+            self.send_buffer.append(pkt)
+            self.closed = True
+
         self.send_event.set()
+
+        # Bloqueamos hasta que el receptor confirme el FIN y setee self.done
         while not self.done:
             time.sleep(0.1)
-        self._send_fin()
+        self.log.info("Connection closed successfully.")
 
     # funciones del sender
 
@@ -118,8 +134,15 @@ class GoBackN(ReliableProtocol):
                 elif seg.is_ack_segment():
                     self._handle_incoming_ack(seg.ack)
 
+                elif seg.is_fin_segment():
+                    self._handle_incoming_finished(seg.seq)
+
             except socket_module.timeout:
                 self._handle_timeout()
+
+            if self.fin_seq is not None:
+                ack_pkt = AckSegment(self.fin_seq)
+                self.socket.sendto(ack_pkt.to_bytes(), self.address)
 
     def _handle_incoming_data(self, seg, addr):
         with self.lock:
@@ -128,7 +151,10 @@ class GoBackN(ReliableProtocol):
                 self.receive_queue.append(seg.payload)
                 self.expected_seq = (self.expected_seq + 1) % MAX_SEQ
             else:
-                self.log.warning(f"Out of order! Got {seg.seq}, expected {self.expected_seq}")
+                self.log.warning(
+                    f"Out of order! Got {
+                        seg.seq}, expected {
+                        self.expected_seq}")
 
             last_ack = (self.expected_seq - 1) % MAX_SEQ
             ack_pkt = AckSegment(last_ack)
@@ -136,6 +162,10 @@ class GoBackN(ReliableProtocol):
 
     def _handle_incoming_ack(self, ack_val):
         with self.lock:
+            if ack_val == self.fin_seq:
+                self.log.debug("Final ACK received. Closing connection...")
+                self.done = True
+                return
             found_idx = -1
             for idx in range(self.base, self.next_idx):
                 if idx % MAX_SEQ == ack_val:
@@ -148,8 +178,15 @@ class GoBackN(ReliableProtocol):
                     self._update_rto(sample)
 
                 self.base = found_idx + 1
-                self.log.debug(f"ACK received: {ack_val}. New base: {self.base}")
+                self.log.debug(
+                    f"ACK received: {ack_val}. New base: {
+                        self.base}")
                 self.send_event.set()
+
+    def _handle_incoming_finished(self, seq):
+        self.log.debug("FIN received")
+        with self.lock:
+            self.fin_seq = seq
 
     # funciones auxiliares
 

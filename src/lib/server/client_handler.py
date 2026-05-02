@@ -1,41 +1,50 @@
 import threading
-import socket
 import os
+import struct
 
-from lib.transport.segments.handshake_response_segment import HandshakeResponseSegment
-from lib.transport.segments.segment import Segment
-from lib.transport.stop_and_wait import StopAndWait
-from lib.transport.go_back_n import GoBackN
-from lib.constants.client_constants import *
-from lib.constants.protocol_constants import PROTOCOL_STOP_AND_WAIT, PROTOCOL_GO_BACK_N
-from lib.constants.socket_constants import BUFFER_SIZE
+from lib.application.file_manager import FileManager
+from lib.constants.client_constants import CLIENT_TYPE_UPLOAD, CLIENT_TYPE_DOWNLOAD
+from lib.constants.server_constants import MAX_STORAGE_SIZE, MAX_FILE_SIZE
+
+# Status code
+APP_CODE_READY = 100
+APP_ERR_NO_SPACE = 201
+APP_ERR_FILE_NOT_FOUND = 202
+APP_ERR_GENERIC = 200
+
+APP_RES_FORMAT = "!B"  # 1 byte unsigned
 
 class ClientHandler(threading.Thread):
-    def __init__(self, client_host, client_port, client_type, filename, size,
-                 protocol_id, on_finish, release_storage, log, file_size):
+    def __init__(self, address, protocol, storage_path, log, on_finish_callback=None, on_update_storage=None, access_storage=None):
         super().__init__()
-        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.client_socket.bind(('', 0))
-        self.client_host = client_host
-        self.client_port = client_port
-        self.client_type = client_type
-        self.dest_file_path = "./storage/" + filename # cambiarlo
-        self.size = size
-        self.on_finish = on_finish
-        self.release_storage = release_storage
+        self.address = address
+        self.protocol = protocol
+        self.storage_path = storage_path
         self.log = log
-        self.file_size = file_size
-
-        if protocol_id == PROTOCOL_STOP_AND_WAIT:
-            self.protocol = StopAndWait(self.client_socket, self.log.clone("STOP-AND-WAIT"))
-        elif protocol_id == PROTOCOL_GO_BACK_N:
-            self.protocol = GoBackN(self.client_socket, self.log.clone("GO-BACK-N"))
-        else:
-            self.log.error(f"Unknown protocol id: {protocol_id}")
-            raise ValueError("Unknown protocol")
+        self.on_finish_callback = on_finish_callback
+        self.on_update_storage=on_update_storage
+        self.access_storage = access_storage
 
     def run(self):
-        """Initializes handler and runs the specified command"""
+        self.protocol.start(self.address)
+        payload = self.protocol.recv()
+
+        op_type, file_size, filename = self._get_data(payload)
+        file_manager = FileManager(protocol=self.protocol, log=self.log)
+        path = self.storage_path + filename
+
+        if op_type == CLIENT_TYPE_DOWNLOAD:
+            if not self._validate_download(file_size, filename):
+                return
+            self.protocol.send(APP_CODE_READY.to_bytes())
+            file_manager.send_file(path)
+        if op_type == CLIENT_TYPE_UPLOAD:
+            if not self._validate_upload(file_size, filename):
+                return
+            self.protocol.send(APP_CODE_READY.to_bytes())
+            file_manager.receive_file(path)
+
+        '''
         address = (self.client_host, self.client_port)
 
         port = self.client_socket.getsockname()[1]
@@ -56,11 +65,13 @@ class ClientHandler(threading.Thread):
         finally:
             self.on_finish((self.client_host, self.client_port))
             self.client_socket.close()
+        
 
     def handle_upload(self, address):
         """Handles the UPLOAD operation"""
         self.protocol.receive(address, self.dest_file_path)
-        if not os.path.exists(self.dest_file_path) or os.path.getsize(self.dest_file_path) != self.size:
+        if not os.path.exists(self.dest_file_path) or os.path.getsize(
+                self.dest_file_path) != self.size:
             self.release_storage(self.file_size)
 
     def handle_download(self, address):
@@ -76,5 +87,57 @@ class ClientHandler(threading.Thread):
             if segment.is_handshake_ready_segment():
                 break
 
-
         self.protocol.send(address, self.dest_file_path)
+
+    '''
+
+    def _get_data(self, payload):
+        header_format = "!BQ"
+        header_size = struct.calcsize(header_format)
+    
+        try:
+            header_data = payload[:header_size]
+            oper_type, file_size = struct.unpack(header_format, header_data)
+            filename = payload[header_size:].decode('utf-8')
+    
+            return oper_type, file_size, filename
+    
+        except Exception as error:
+            self.log.error(f"Failed to parse payload: {error}")
+            return None
+
+    def _validate_download(self, file_size, filename):
+        if not self._file_exists(filename):
+            self.log.error(f"File not found: {filename}")
+            self._end_conn(APP_ERR_FILE_NOT_FOUND)
+            return False
+        if file_size > MAX_FILE_SIZE:
+            self.log.error(f"File too large: {filename}")
+            self._end_conn(APP_ERR_GENERIC)
+            return False
+
+        return True
+
+    def _validate_upload(self, file_size, filename):
+        if self._is_storage_full(file_size):
+            self.log.error(f"Not enough storage to up: {filename}")
+            self._end_conn(APP_ERR_NO_SPACE)
+            return False
+        return True
+    
+    def _file_exists(self, filename):
+        file_path = self.storage_path + filename
+        if not os.path.exists(file_path):
+            return False
+        return True
+
+    def _is_storage_full(self, file_size):
+        current_storage = self.access_storage()
+        if current_storage + file_size > MAX_STORAGE_SIZE:
+            return True
+        return False
+
+    def _end_conn(self, status_code):
+        response_seg = status_code.to_bytes()
+        self.protocol.send(response_seg)
+        self.on_finish_callback(self.address)

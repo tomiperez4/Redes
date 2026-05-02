@@ -2,6 +2,7 @@ import logging
 import threading
 import sys
 
+
 class Logger:
     _configured_loggers = {}
     _lock = threading.Lock()
@@ -25,13 +26,15 @@ class Logger:
 
                 handler = logging.FileHandler(log_file, mode='a')
                 handler.setLevel(logging.DEBUG)
-                fmt = logging.Formatter('%(asctime)s - [%(prefix)s] - %(levelname)s - %(message)s')
+                fmt = logging.Formatter(
+                    '%(asctime)s - [%(prefix)s] - %(levelname)s - %(message)s')
                 handler.setFormatter(fmt)
                 logger.addHandler(handler)
 
                 if not self.quiet:
                     console_handler = logging.StreamHandler(sys.stdout)
-                    console_fmt = logging.Formatter('[%(levelname)s] [%(prefix)s] %(message)s')
+                    console_fmt = logging.Formatter(
+                        '[%(levelname)s] [%(prefix)s] %(message)s')
                     console_handler.setFormatter(console_fmt)
 
                     if self.verbose:
@@ -45,7 +48,8 @@ class Logger:
                 Logger._initialized = True
 
         base_logger = Logger._configured_loggers[log_file]
-        self.adapter = logging.LoggerAdapter(base_logger, {'prefix': self.prefix})
+        self.adapter = logging.LoggerAdapter(
+            base_logger, {'prefix': self.prefix})
 
     def clone(self, new_prefix):
         return Logger(new_prefix, self.log_file, self.verbose, self.quiet)

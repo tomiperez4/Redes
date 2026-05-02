@@ -1,6 +1,7 @@
 from lib.transport.segments.segment import Segment
 from lib.transport.segments.constants import MF_FLAG
 
+
 class DataSegment(Segment):
     def __init__(self, seq, data, mf=False):
         super().__init__(seq)

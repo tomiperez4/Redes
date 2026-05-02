@@ -9,12 +9,8 @@ from lib.transport.go_back_n import GoBackN
 from lib.transport.stop_and_wait import StopAndWait
 
 # Status code
-APP_CODE_READY = 100
-APP_ERR_NO_SPACE = 201
-APP_ERR_FILE_NOT_FOUND = 202
-APP_ERR_GENERIC = 200
+APP_RES_FORMAT = "!B"  # 1 byte unsigned
 
-APP_RES_FORMAT = "!B" # 1 byte unsigned
 
 class RdtSocket:
     def __init__(self, skt, protocol_id, log):
@@ -22,7 +18,7 @@ class RdtSocket:
         self.log = log
         self.protocol_id = protocol_id
 
-    def connect(self, address, operation_type, filename, file_size):
+    def connect(self, address):
         transfer_addr = self._initial_handshake(address)
         if transfer_addr is None:
             return None
@@ -31,15 +27,7 @@ class RdtSocket:
         if protocol is None:
             return None
         protocol.start(transfer_addr)
-
-        payload = struct.pack(
-            "!BH",
-            operation_type,
-            file_size,
-        ) + filename.encode('utf-8')
-
-        return self._negotiate_transaction(protocol, payload)
-
+        return protocol
 
     def _initial_handshake(self, address):
         retry_attempts = 0
@@ -55,10 +43,10 @@ class RdtSocket:
                     self.log.info("Received SYN-ACK segment from server")
                     return address[0], response.get_port()
 
-
             except socket.timeout:
                 retry_attempts += 1
-                self.log.warning(f"SYN-ACK segment from server not received. Attempt {retry_attempts}/5")
+                self.log.warning(
+                    f"SYN-ACK segment from server not received. Attempt {retry_attempts}/5")
             except Exception as error:
                 self.log.error(f"Unexpected error: {error}")
 
@@ -72,30 +60,3 @@ class RdtSocket:
             return GoBackN(self.skt, self.log)
         return None
 
-    def _negotiate_transaction(self, protocol, payload):
-        try:
-            protocol.send(payload)
-
-            response = protocol.recv()
-            status_code = struct.unpack("!B", response)[0]
-
-            if status_code == APP_ERR_NO_SPACE:
-                self.log.error(f"Server's capacity is full. Could not upload your file ({status_code})")
-                return None
-            elif status_code == APP_ERR_FILE_NOT_FOUND:
-                self.log.error(f"File not found. Could not download ({status_code})")
-                return None
-            elif status_code == APP_ERR_GENERIC:
-                self.log.error(f"Unexpected error. Could not download ({status_code})")
-            elif status_code ==APP_CODE_READY:
-                self.log.info(f"Server is ready. Connection established")
-                return protocol
-
-            #if response.is_finished_segment():
-            #    self.log.info("Could not start connection with server")
-            #    return None
-
-
-        except Exception as error:
-            self.log.error(f"Could not start connection with server: {error}")
-            return None

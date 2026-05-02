@@ -1,13 +1,13 @@
-#Size limits
+# Size limits
 BUF_SIZE = 1024
 MAX_CLIENTS = 10
 MAX_STORAGE_SIZE = 500    # MB
 MAX_FILE_SIZE = 15        # MB
 
-#Client types
+# Client types
 CLIENT_TYPE_UPLOAD = 0
 CLIENT_TYPE_DOWNLOAD = 1
 
-#Protocols id
+# Protocols id
 PROTOCOL_STOP_AND_WAIT = 0
 PROTOCOL_GO_BACK_N = 1

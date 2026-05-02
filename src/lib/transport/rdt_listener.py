@@ -25,12 +25,12 @@ class RdtListener:
             segment = Segment.from_bytes(raw)
 
             if address in self.clients and segment.is_syn_segment():
+
                 with self.client_lock:
                     port = self.clients[address]
                     h_response = SynackSegment(port)
                     self.skt.sendto(h_response.to_bytes(), address)
                     return None
-
             if len(self.clients) >= MAX_CLIENTS:
                 self._ack_error("Client limit reached", address)
                 return None
@@ -38,9 +38,7 @@ class RdtListener:
             if not segment.is_syn_segment():
                 self.log.warning("Expected handshake request segment")
                 return None
-
             protocol_type = segment.get_protocol()
-
             # Assign new port for incoming client
             socket_client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             socket_client.bind((self.skt.getsockname()[0], 0))

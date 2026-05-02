@@ -2,6 +2,7 @@ import struct
 from lib.transport.segments.segment import Segment
 from lib.transport.segments.constants import SYN_FLAG
 
+
 class SynSegment(Segment):
     PAYLOAD_FORMAT = "!B"
 
@@ -19,8 +20,7 @@ class SynSegment(Segment):
     @staticmethod
     def from_payload(seq, data):
         f_size = struct.calcsize(SynSegment.PAYLOAD_FORMAT)
-        fields = struct.unpack(SynSegment.PAYLOAD_FORMAT, data[:f_size])
-        protocol = fields
+        protocol = struct.unpack(SynSegment.PAYLOAD_FORMAT, data[:f_size])[0]
         return SynSegment(
             protocol,
             seq

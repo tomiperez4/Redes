@@ -1,6 +1,7 @@
 from lib.transport.segments.segment import Segment
 from lib.transport.segments.constants import FIN_FLAG
 
+
 class FinishedSegment(Segment):
     def __init__(self, seq=0):
         super().__init__(seq)

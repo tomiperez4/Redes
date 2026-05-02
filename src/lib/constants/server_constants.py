@@ -1,4 +1,4 @@
-#Size limits
+# Size limits
 MAX_CLIENTS = 10
 MAX_STORAGE_SIZE = 500    # MB
 MAX_FILE_SIZE = 15        # MB
