@@ -33,7 +33,6 @@ class FileManager:
                     if chunk is None:
                         break
                     output_file.write(chunk)
-
             os.rename(temp_file, output_path)
             self.log.info("File transfer complete")
         except Exception as error:

@@ -1,12 +1,12 @@
 import socket as socket_module
 import time
 
+from lib.constants.socket_constants import MAX_PACKET_SIZE
 from lib.transport.segments.ack_segment import AckSegment
 from lib.transport.segments.data_segment import DataSegment
 from lib.transport.segments.finished_segment import FinishedSegment
 from lib.transport.segments.segment import Segment
 from lib.transport.rdt import ReliableProtocol
-from lib.constants.socket_constants import BUFFER_SIZE
 
 INITIAL_TIMEOUT = 0.5
 ALPHA = 0.125
@@ -100,17 +100,26 @@ class StopAndWait(ReliableProtocol):
                 self.socket.sendto(last_ack.to_bytes(), self.address)
 
     def close(self):
-        while True:
-            try:
-                self.socket.sendto(FinishedSegment().to_bytes(), self.address)
+        self.socket.settimeout(self._timeout)
 
-                seg = self.socket.recvfrom(BUFFER_SIZE)
-                if seg.is_ack_segment():
-                    self.log.debug("Connection closed")
+        fin = FinishedSegment(self._send_seq)
+
+        while True:
+            self.socket.sendto(fin.to_bytes(), self.address)
+            self.log.debug("FIN enviado")
+
+            try:
+                raw, _ = self.socket.recvfrom(MAX_PACKET_SIZE)
+                seg = Segment.from_bytes(raw)
+
+                if seg.is_ack_segment() and seg.get_ack_number() == self._send_seq:
+                    self.log.debug("FIN ACK recibido. Cerrando.")
+                    self.socket.close()
                     return
-                # Podria haber un segundo Finished segment, y ahi cerrar, y que el otro intente recibir, y si no recibe por t_out, cierra directamente
-            except Exception as _:
-                return
+
+            except socket_module.timeout:
+                self.log.debug("Timeout esperando ACK, reintentando FIN")
+                continue
 
     # -------------------------------------------------------------------------
     # Helpers privados
@@ -148,7 +157,7 @@ class StopAndWait(ReliableProtocol):
 
     def __try_recv(self):
         try:
-            raw, _ = self.socket.recvfrom(BUFFER_SIZE)
+            raw, _ = self.socket.recvfrom(MAX_PACKET_SIZE)
             return Segment.from_bytes(raw)
         except socket_module.timeout:
             return None
