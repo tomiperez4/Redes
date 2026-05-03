@@ -13,5 +13,5 @@ class FinishedSegment(Segment):
         # Un paquete FIN suele no tener payload
         return b""
 
-    def is_finished(self):
+    def is_finished_segment(self):
         return True

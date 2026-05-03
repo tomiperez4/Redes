@@ -17,7 +17,7 @@ class DownloadClient(Client):
     def connect_to_server(self):
         size_in_bytes = 0
         rdt = RdtSocket(self.skt, self.protocol_id, self.log)
-        self.protocol = rdt.connect(self.server_dir)
+        self.protocol = rdt.connect(self.server_addr)
 
         payload = struct.pack(
             "!BQ",
@@ -28,9 +28,9 @@ class DownloadClient(Client):
         return self._negotiate_transaction(self.protocol, payload)
 
     def run_process(self):
-        self.connect_to_server()
-        file_manager = FileManager(self.protocol, self.log)
-        file_manager.receive_file(self.dst_path)
+        if self.connect_to_server() is not None:
+            file_manager = FileManager(self.protocol, self.log)
+            file_manager.receive_file(self.dst_path)
 
 def has_enough_space(file_size):
     total, used, free = shutil.disk_usage(".")

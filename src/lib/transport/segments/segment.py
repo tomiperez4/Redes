@@ -53,9 +53,6 @@ class Segment(ABC):
     def is_ack_segment(self):
         return False
 
-    def is_finished(self):
-        return False
-
     def is_syn_segment(self):
         return False
 

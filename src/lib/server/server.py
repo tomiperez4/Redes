@@ -37,8 +37,6 @@ class Server:
                 protocol, address = listener.handle_incoming()
                 if not protocol:
                     continue
-                self.log.info(
-                    f"New client: {address} (total: {len(self.clients)})")
                 client_handler = ClientHandler(
                     address,
                     protocol,

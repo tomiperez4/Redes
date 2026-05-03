@@ -26,10 +26,6 @@ class ReliableProtocol(ABC):
         self.socket.settimeout(self.timeout_interval)
 
     @abstractmethod
-    def start(self, address):
-        pass
-
-    @abstractmethod
     def close(self):
         pass
 
@@ -41,9 +37,9 @@ class ReliableProtocol(ABC):
     def recv(self):
         pass
 
-    @abstractmethod
-    def is_done(self):
-        pass
+   # @abstractmethod
+   # def is_done(self):
+   #     pass
 
     # @abstractmethod
     # def send(self, address, path):

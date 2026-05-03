@@ -26,12 +26,11 @@ class ClientHandler(threading.Thread):
         self.access_storage = access_storage
 
     def run(self):
-        self.protocol.start(self.address)
         payload = self.protocol.recv()
 
         op_type, file_size, filename = self._get_data(payload)
-        file_manager = FileManager(protocol=self.protocol, log=self.log)
-        path = self.storage_path + filename
+        file_manager = FileManager(self.protocol, self.log.clone("CLIENT (FILE MANAGER)"))
+        path = self.storage_path + "/" + filename
 
         if op_type == CLIENT_TYPE_DOWNLOAD:
             if not self._validate_download(file_size, filename):
@@ -44,52 +43,7 @@ class ClientHandler(threading.Thread):
             self.protocol.send(APP_CODE_READY.to_bytes())
             file_manager.receive_file(path)
 
-        '''
-        address = (self.client_host, self.client_port)
-
-        port = self.client_socket.getsockname()[1]
-        response = HandshakeResponseSegment(port, self.file_size)
-
-        self.client_socket.sendto(response.to_bytes(), address)
-
-        try:
-            if self.client_type == CLIENT_TYPE_UPLOAD:
-                self.log.info("Uploading file...")
-                self.handle_upload(address)
-            elif self.client_type == CLIENT_TYPE_DOWNLOAD:
-                self.log.info("Downloading file...")
-                self.handle_download(address)
-            else:
-                self.log.error(f"Unknown client type: {self.client_type}")
-                raise ValueError("Unknown client type")
-        finally:
-            self.on_finish((self.client_host, self.client_port))
-            self.client_socket.close()
-        
-
-    def handle_upload(self, address):
-        """Handles the UPLOAD operation"""
-        self.protocol.receive(address, self.dest_file_path)
-        if not os.path.exists(self.dest_file_path) or os.path.getsize(
-                self.dest_file_path) != self.size:
-            self.release_storage(self.file_size)
-
-    def handle_download(self, address):
-        """Handles the DOWNLOAD operation"""
-        while True:
-            raw, _ = self.client_socket.recvfrom(BUFFER_SIZE)
-            segment = Segment.from_bytes(raw)
-
-            if segment.is_handshake_error_segment():
-                self.log.info("Client rejected download (no space)")
-                return
-
-            if segment.is_handshake_ready_segment():
-                break
-
-        self.protocol.send(address, self.dest_file_path)
-
-    '''
+        self.on_finish_callback(self.address)
 
     def _get_data(self, payload):
         header_format = "!BQ"
@@ -126,7 +80,7 @@ class ClientHandler(threading.Thread):
         return True
     
     def _file_exists(self, filename):
-        file_path = self.storage_path + filename
+        file_path = self.storage_path + "/" + filename
         if not os.path.exists(file_path):
             return False
         return True

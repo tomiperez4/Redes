@@ -13,7 +13,7 @@ from lib.transport.segments.finished_segment import FinishedSegment
 
 
 class GoBackN(ReliableProtocol):
-    def __init__(self, socket, log):
+    def __init__(self, socket, address, log):
         super().__init__(socket, log)
 
         self.send_buffer = []
@@ -25,8 +25,9 @@ class GoBackN(ReliableProtocol):
         self.next_idx = 0
         self.fin_seq = None
         self.sent_times = {}
-        self.address = None
+        self.address = address
 
+        self.socket.settimeout(self.timeout_interval)
         # cositas para el receiver
         self.expected_seq = 0
 
@@ -107,9 +108,8 @@ class GoBackN(ReliableProtocol):
                             self.done = True
                         break
 
-                    data = self.send_buffer[self.next_idx]
+                    pkt = self.send_buffer[self.next_idx]
                     seq = self.next_idx % MAX_SEQ
-                    pkt = DataSegment(seq, data)
 
                     if self.next_idx not in self.sent_times:
                         self.sent_times[self.next_idx] = time.time()
@@ -134,21 +134,17 @@ class GoBackN(ReliableProtocol):
                 elif seg.is_ack_segment():
                     self._handle_incoming_ack(seg.ack)
 
-                elif seg.is_fin_segment():
-                    self._handle_incoming_finished(seg.seq)
+                elif seg.is_finished_segment():
+                    self._handle_incoming_finished(seg.seq, addr)
 
             except socket_module.timeout:
                 self._handle_timeout()
-
-            if self.fin_seq is not None:
-                ack_pkt = AckSegment(self.fin_seq)
-                self.socket.sendto(ack_pkt.to_bytes(), self.address)
 
     def _handle_incoming_data(self, seg, addr):
         with self.lock:
             if seg.seq == self.expected_seq:
                 self.log.debug(f"Data received in order: seq={seg.seq}")
-                self.receive_queue.append(seg.payload)
+                self.receive_queue.append(seg.get_payload())
                 self.expected_seq = (self.expected_seq + 1) % MAX_SEQ
             else:
                 self.log.warning(
@@ -162,10 +158,6 @@ class GoBackN(ReliableProtocol):
 
     def _handle_incoming_ack(self, ack_val):
         with self.lock:
-            if ack_val == self.fin_seq:
-                self.log.debug("Final ACK received. Closing connection...")
-                self.done = True
-                return
             found_idx = -1
             for idx in range(self.base, self.next_idx):
                 if idx % MAX_SEQ == ack_val:
@@ -183,10 +175,20 @@ class GoBackN(ReliableProtocol):
                         self.base}")
                 self.send_event.set()
 
-    def _handle_incoming_finished(self, seq):
+    def _handle_incoming_finished(self, seq, addr):
         self.log.debug("FIN received")
         with self.lock:
-            self.fin_seq = seq
+            if seq == self.expected_seq:
+                self.log.debug(f"FIN received OK")
+                self.expected_seq = (self.expected_seq + 1) % MAX_SEQ
+                self.done = True
+            else:
+                self.log.warning(
+                    f"FIN out of order!")
+
+            last_ack = (self.expected_seq - 1) % MAX_SEQ
+            ack_pkt = AckSegment(last_ack)
+            self.socket.sendto(ack_pkt.to_bytes(), addr)
 
     # funciones auxiliares
 

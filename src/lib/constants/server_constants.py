@@ -1,4 +1,5 @@
 # Size limits
+BYTES_PER_MB = (1024 ** 2)
 MAX_CLIENTS = 10
-MAX_STORAGE_SIZE = 500    # MB
-MAX_FILE_SIZE = 15        # MB
+MAX_STORAGE_SIZE = 500 * BYTES_PER_MB   # Bytes
+MAX_FILE_SIZE = 15 * BYTES_PER_MB     # Bytes

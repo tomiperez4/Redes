@@ -2,7 +2,6 @@ import os
 from lib.constants.socket_constants import BUFFER_SIZE
 from lib.transport.rdt import ReliableProtocol
 
-
 class FileManager:
     def __init__(self, protocol: ReliableProtocol, log):
         self.protocol = protocol
@@ -16,7 +15,10 @@ class FileManager:
                     if not chunk:
                         break
                     self.protocol.send(chunk)
-                self.protocol.close()
+            self.log.info("File transfer complete. Sending Finished segment")
+            self.protocol.close()
+            return
+
         except Exception as error:
             self.log.error(f"Transfer failed: {error}")
             raise
@@ -27,10 +29,11 @@ class FileManager:
         try:
             with open(temp_file, "wb") as output_file:
                 while True:
-                    if self.protocol.is_done():
-                        break
                     chunk = self.protocol.recv()
+                    if chunk is None:
+                        break
                     output_file.write(chunk)
+
             os.rename(temp_file, output_path)
             self.log.info("File transfer complete")
         except Exception as error:

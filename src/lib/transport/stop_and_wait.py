@@ -1,162 +1,168 @@
 import socket as socket_module
-import threading
 import time
-from collections import deque
 
 from lib.transport.segments.ack_segment import AckSegment
 from lib.transport.segments.data_segment import DataSegment
+from lib.transport.segments.finished_segment import FinishedSegment
 from lib.transport.segments.segment import Segment
 from lib.transport.rdt import ReliableProtocol
-from lib.constants.socket_constants import MAX_PACKET_SIZE
-from lib.transport.segments.finished_segment import FinishedSegment
+from lib.constants.socket_constants import BUFFER_SIZE
+
+INITIAL_TIMEOUT = 0.5
+ALPHA = 0.125
+BETA = 0.25
 
 
 class StopAndWait(ReliableProtocol):
-    def __init__(self, socket, log):
+    def __init__(self, socket, address, log):
         super().__init__(socket, log)
-
-        # Buffers
-        self.send_buffer = deque()
-        self.receive_buffer = deque()
-        self.lock = threading.Lock()
-
-        # Estado
-        self.send_seq = 0
-        self.expected_seq = 0
-        self.waiting_ack = False
-        self.last_pkt_sent = None
-        self.address = None
-
-        self.closed = False
-
-        self.worker_thread = threading.Thread(
-            target=self._main_loop, daemon=True)
-        self.worker_thread.start()
-
-    # api pública de sw
-
-    def start(self, address):
         self.address = address
-        self.socket.settimeout(0.1)
+        self._send_seq = 0
+        self._expected_seq = 0
+        self._timeout = INITIAL_TIMEOUT
+        self._srtt = None
+        self._rttvar = None
+        self.socket.settimeout(self._timeout)
 
-    def send(self, data):
-        with self.lock:
-            seq = self.send_seq
-            pkt = DataSegment(seq, data)
-            self.send_buffer.append(pkt)
+    # -------------------------------------------------------------------------
+    # API pública
+    # -------------------------------------------------------------------------
+
+    def send(self, data: bytes):
+        """
+        Arma el segmento, lo envía y bloquea hasta recibir el ACK correcto.
+        Retransmite ante timeout. Avanza send_seq al confirmar.
+        """
+        pkt = DataSegment(self._send_seq, data)
+
+        while True:
+            self.socket.sendto(pkt.to_bytes(), self.address)
+            self.log.debug(f"Enviado seq={self._send_seq}")
+            t_send = time.time()
+
+            ack = self.__wait_for_ack(self._send_seq)
+
+            if ack is not None:
+                self.__update_rto(time.time() - t_send)
+                self.log.debug(
+                    f"ACK {self._send_seq} recibido. "
+                    f"RTO={self._timeout:.4f}s"
+                )
+                self._send_seq = 1 - self._send_seq
+                return
+
+            self.log.warning(f"Timeout. Re-enviando seq={self._send_seq}")
 
     def recv(self):
-        while not self.receive_buffer:
-            if self.is_done():
-                return None
-            time.sleep(0.01)
-        with self.lock:
-            return self.receive_buffer.popleft()
+        """
+        Bloquea hasta recibir un DataSegment con el seq esperado.
+        Descarta fuera de orden y re-envía el último ACK.
+        Avanza expected_seq al aceptar. Devuelve el payload.
+        """
+        while True:
+            seg = self.__try_recv()
+            if seg is None:
+                continue
 
-    def is_done(self):
-        return self.closed and len(self.send_buffer) == 0 and len(self.receive_buffer) == 0
+            if seg.is_finished_segment():
+                ack = AckSegment(self._expected_seq)
+                self.socket.sendto(ack.to_bytes(), self.address)
+                end_time = time.time() + 2
+
+                while time.time() < end_time:
+                    seg_rep = self.__try_recv()
+
+                    if seg_rep and seg_rep.is_finished_segment():
+                        self.log.debug("FIN retransmitido recibido, reenviando ACK")
+                        self.socket.sendto(ack.to_bytes(), self.address)
+
+                self.socket.close()
+                self.log.info("Received Finished segment. Socket closed")
+                return None
+
+            if not seg.is_data_segment():
+                self.log.debug("Segmento inesperado, ignorando")
+                continue
+
+            if seg.seq == self._expected_seq:
+                self.log.debug(f"Data recibida: seq={seg.seq}")
+                ack = AckSegment(self._expected_seq)
+                self.socket.sendto(ack.to_bytes(), self.address)
+                self.log.debug(f"ACK enviado: ack={self._expected_seq}")
+                self._expected_seq = 1 - self._expected_seq
+                return seg.get_payload()
+            else:
+                self.log.debug(
+                    f"Fuera de orden: got={seg.seq}, "
+                    f"esperado={self._expected_seq}. Re-enviando último ACK"
+                )
+                last_ack = AckSegment(1 - self._expected_seq)
+                self.socket.sendto(last_ack.to_bytes(), self.address)
 
     def close(self):
-        with self.lock:
-            seq = 1 - self.send_seq
-            pkt = FinishedSegment(seq)
-            self.send_buffer.append(pkt)
-
-        self.closed = True
-
-    # loop principal
-
-    def _main_loop(self):
-        last_send_time = 0
-        sample_start_time = 0
-        while not self.closed:
+        while True:
             try:
-                try:
-                    raw, addr = self.socket.recvfrom(MAX_PACKET_SIZE)
-                    seg = Segment.from_bytes(raw)
+                self.socket.sendto(FinishedSegment().to_bytes(), self.address)
 
-                    if seg.is_ack_segment():
-                        with self.lock:
-                            if self.waiting_ack and seg.ack == self.send_seq:
-                                sample_rtt = time.time() - sample_start_time
-                                self._update_rto(sample_rtt)
+                seg = self.socket.recvfrom(BUFFER_SIZE)
+                if seg.is_ack_segment():
+                    self.log.debug("Connection closed")
+                    return
+                # Podria haber un segundo Finished segment, y ahi cerrar, y que el otro intente recibir, y si no recibe por t_out, cierra directamente
+            except Exception as _:
+                return
 
-                                self.log.debug(
-                                    f"ACK {
-                                        seg.ack} recibido. RTT: {
-                                        sample_rtt:.4f}s. Nuevo RTO: {
-                                        self.timeout_interval:.4f}s")
+    # -------------------------------------------------------------------------
+    # Helpers privados
+    # -------------------------------------------------------------------------
 
-                                self.waiting_ack = False
-                                self.send_seq = 1 - self.send_seq
+    def __wait_for_ack(self, expected_ack):
+        """
+        Espera un ACK con ack==expected_ack hasta agotar el timeout.
+        Descarta cualquier otro segmento que llegue mientras espera.
+        Devuelve el AckSegment o None si hubo timeout.
+        """
+        deadline = time.time() + self._timeout
 
-                    elif seg.is_data_segment():
-                        self._handle_data(seg, addr)
+        while True:
+            remaining = deadline - time.time()
+            if remaining <= 0:
+                return None
 
-                except socket_module.timeout:
-                    pass
+            self.socket.settimeout(remaining)
+            seg = self.__try_recv()
 
-                if self.waiting_ack and (
-                        time.time() - last_send_time > self.timeout_interval):
-                    self.log.warning(
-                        f"Timeout! Re-enviando seq={self.send_seq}")
-                    self.socket.sendto(
-                        self.last_pkt_sent.to_bytes(), self.address)
-                    last_send_time = time.time()
+            if seg is None:
+                return None
 
-                if not self.waiting_ack:
-                    with self.lock:
-                        if self.send_buffer:
-                            pkt = self.send_buffer.popleft()
-                            if pkt.is_finished_segment():
-                                self._send_final_packet(pkt)
-                            self.last_pkt_sent = pkt
-                            self.waiting_ack = True
+            if seg.is_ack_segment():
+                if seg.get_ack_number() == expected_ack:
+                    return seg
+                self.log.debug(
+                    f"ACK inesperado: got={seg.get_ack_number()}, esperado={expected_ack}"
+                )
+                continue
 
-                            sample_start_time = time.time()
-                            self.socket.sendto(pkt.to_bytes(), self.address)
-                            last_send_time = sample_start_time
-                            self.log.debug(f"Enviado seq={self.send_seq}")
+            # Cualquier otra cosa se ignora mientras esperamos el ACK
+            self.log.debug("Segmento no esperado durante wait_for_ack, ignorando")
 
-            except Exception as error:
-                self.log.error(f"Error en loop: {error}")
+    def __try_recv(self):
+        try:
+            raw, _ = self.socket.recvfrom(BUFFER_SIZE)
+            return Segment.from_bytes(raw)
+        except socket_module.timeout:
+            return None
 
-    # manejo de segmentos
+    def __update_rto(self, sample_rtt: float):
+        if self._srtt is None:
+            self._srtt = sample_rtt
+            self._rttvar = sample_rtt / 2
+        else:
+            self._rttvar = (
+                (1 - BETA) * self._rttvar
+                + BETA * abs(self._srtt - sample_rtt)
+            )
+            self._srtt = (1 - ALPHA) * self._srtt + ALPHA * sample_rtt
 
-    def _handle_segment(self, seg, addr):
-        if seg.is_data_segment():
-            self._handle_data(seg, addr)
-        elif seg.is_ack_segment():
-            self._handle_ack(seg.ack)
-        elif seg.is_finished_segment():
-            self.closed = True
-            self.socket.close()
-
-    def _handle_data(self, seg, addr):
-        with self.lock:
-            if seg.seq == self.expected_seq:
-                self.log.debug(f"Data received: seq={seg.seq}")
-                if seg.data:
-                    self.receive_buffer.append(seg.data)
-                self.expected_seq = 1 - self.expected_seq
-
-            ack_val = 1 - self.expected_seq
-            ack_pkt = AckSegment(ack_val)
-            self.socket.sendto(ack_pkt.to_bytes(), addr)
-
-    def _handle_ack(self, ack_val):
-        with self.lock:
-            if self.waiting_ack and ack_val == self.send_seq:
-                self.log.debug(f"ACK received for seq={self.send_seq}")
-                self.waiting_ack = False
-                self.send_seq = 1 - self.send_seq
-
-    def _send_final_packet(self, pkt):
-        with self.lock:
-            while not self.closed:
-                try:
-                    pkt = self.socket.sendto(pkt.to_bytes(), self.address)
-                    self.log.debug(f"Sent final packet")
-                except Exception as _:
-                    self.closed = True
-                    self.socket.close()
+        self._timeout = self._srtt + 4 * self._rttvar
+        self.socket.settimeout(self._timeout)

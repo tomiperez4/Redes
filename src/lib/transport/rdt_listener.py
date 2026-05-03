@@ -25,7 +25,6 @@ class RdtListener:
             segment = Segment.from_bytes(raw)
 
             if address in self.clients and segment.is_syn_segment():
-
                 with self.client_lock:
                     port = self.clients[address]
                     h_response = SynackSegment(port)
@@ -49,9 +48,10 @@ class RdtListener:
 
                 syn_ack = SynackSegment(port)
                 self.skt.sendto(syn_ack.to_bytes(), address)
-
+            self.log.info(
+                f"New client: {address} (total: {len(self.clients)})")
             return self._initialize_protocol(
-                protocol_type, socket_client), address
+                protocol_type, socket_client, address), address
 
         except Exception as error:
             self.log.error(f"RDTListener error: {error}")
@@ -61,11 +61,11 @@ class RdtListener:
         h_error = FinishedSegment()
         self.skt.sendto(h_error.to_bytes(), address)
 
-    def _initialize_protocol(self, protocol_type, socket_client):
+    def _initialize_protocol(self, protocol_type, socket_client, address):
         if protocol_type == PROTOCOL_GO_BACK_N:
-            return GoBackN(socket_client, self.log.clone("GO-BACK-N"))
+            return GoBackN(socket_client, address, self.log.clone("GO-BACK-N"))
         elif protocol_type == PROTOCOL_STOP_AND_WAIT:
-            return StopAndWait(socket_client, self.log.clone("STOP_AND_WAIT"))
+            return StopAndWait(socket_client, address, self.log.clone("STOP_AND_WAIT"))
         else:
             self.log.error(f"Unknown protocol type: {protocol_type}")
             return None

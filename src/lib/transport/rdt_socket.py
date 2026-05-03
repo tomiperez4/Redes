@@ -23,10 +23,9 @@ class RdtSocket:
         if transfer_addr is None:
             return None
 
-        protocol = self._instantiate_protocol()
+        protocol = self._instantiate_protocol(transfer_addr)
         if protocol is None:
             return None
-        protocol.start(transfer_addr)
         return protocol
 
     def _initial_handshake(self, address):
@@ -53,10 +52,10 @@ class RdtSocket:
         self.log.error("Handshake failed. Max retries reached.")
         return None
 
-    def _instantiate_protocol(self):
+    def _instantiate_protocol(self, address):
         if self.protocol_id == PROTOCOL_STOP_AND_WAIT:
-            return StopAndWait(self.skt, self.log)
+            return StopAndWait(self.skt, address, self.log.clone("CLIENT (SW)"))
         elif self.protocol_id == PROTOCOL_GO_BACK_N:
-            return GoBackN(self.skt, self.log)
+            return GoBackN(self.skt, address, self.log.clone("CLIENT (GBN)"))
         return None
 
