@@ -1,4 +1,5 @@
 import os
+
 from lib.constants.socket_constants import BUFFER_SIZE
 from lib.transport.rdt import ReliableProtocol
 
@@ -18,7 +19,7 @@ class FileManager:
                     if self.protocol.send(chunk) == 1:
                         return
 
-            if self.shutdown_event is not None and not self.shutdown_event.is_set():
+            if self.shutdown_event is None or not self.shutdown_event.is_set():
                 self.log.info("File transfer complete. Sending Finished segment")
 
             self.protocol.close()
@@ -42,17 +43,23 @@ class FileManager:
                         break
                     output_file.write(chunk)
 
-            if self.shutdown_event is not None and not self.shutdown_event.is_set():
+            if self.shutdown_event is None or not self.shutdown_event.is_set():
                 self.log.info("File transfer complete")
                 os.rename(temp_file, output_path)
                 return
 
-            self.log.info("File transfer interrupted")
-            self.protocol.close()
-            if os.path.exists(temp_file):
-                os.remove(temp_file)
+            self.__handle_transfer_interrupt(temp_file)
+
+        except KeyboardInterrupt:
+            self.__handle_transfer_interrupt(temp_file)
 
         except Exception as error:
             self.log.error(f"File transfer failed: {error}")
             if os.path.exists(temp_file):
                 os.remove(temp_file)
+
+    def __handle_transfer_interrupt(self, temp_file):
+        self.log.info("File transfer interrupted")
+        self.protocol.close()
+        if os.path.exists(temp_file):
+            os.remove(temp_file)

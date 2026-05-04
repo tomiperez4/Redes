@@ -55,6 +55,7 @@ class StopAndWait(ReliableProtocol):
 
             if seg.is_finished_segment():
                 self.__handle_fin_segment()
+                return None
 
             if not seg.is_data_segment():
                 self.log.debug("Unexpected segment. Keep trying to receive data")
