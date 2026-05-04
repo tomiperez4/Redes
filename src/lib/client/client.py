@@ -33,7 +33,11 @@ class Client:
         try:
             protocol.send(payload)
             response = protocol.recv()
-            status_code = struct.unpack("!B", response)[0]
+
+            if response is None:
+                raise ConnectionError("Unexpected connection error")
+
+            status_code, file_size = struct.unpack("!BQ", response)
 
             if status_code == APP_ERR_NO_SPACE:
                 self.log.error(
@@ -49,7 +53,7 @@ class Client:
                 return None
             elif status_code == APP_CODE_READY:
                 self.log.info(f"Server is ready. Connection established ({status_code})")
-                return protocol
+                return protocol, file_size
 
         except Exception as error:
             self.log.error(f"Could not start connection with server: {error}")

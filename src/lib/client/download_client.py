@@ -28,9 +28,10 @@ class DownloadClient(Client):
         return self._negotiate_transaction(self.protocol, payload)
 
     def run_process(self):
-        if self.connect_to_server() is not None:
+        file_size = self.connect_to_server()
+        if file_size is not None:
             file_manager = FileManager(self.protocol, self.log)
-            file_manager.receive_file(self.dst_path)
+            file_manager.receive_file(self.dst_path, file_size)
 
 def has_enough_space(file_size):
     total, used, free = shutil.disk_usage(".")

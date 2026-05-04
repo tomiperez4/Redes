@@ -32,7 +32,7 @@ class FileManager:
             self.log.error(f"Transfer failed: {error}")
             raise
 
-    def receive_file(self, output_path):
+    def receive_file(self, output_path, file_size):
         temp_file = output_path + ".tmp"
 
         try:
@@ -43,12 +43,16 @@ class FileManager:
                         break
                     output_file.write(chunk)
 
-            if self.shutdown_event is None or not self.shutdown_event.is_set():
+            actual_file_size = os.path.getsize(temp_file)
+
+            if (self.shutdown_event is None or not self.shutdown_event.is_set()) and actual_file_size == file_size:
                 self.log.info("File transfer complete")
                 os.rename(temp_file, output_path)
                 return
 
-            self.__handle_transfer_interrupt(temp_file)
+            self.log.info("File transfer interrupted")
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
 
         except KeyboardInterrupt:
             self.__handle_transfer_interrupt(temp_file)

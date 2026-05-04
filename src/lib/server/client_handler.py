@@ -12,7 +12,7 @@ APP_ERR_NO_SPACE = 201
 APP_ERR_FILE_NOT_FOUND = 202
 APP_ERR_GENERIC = 200
 
-APP_RES_FORMAT = "!B"  # 1 byte unsigned
+APP_RES_FORMAT = "!BQ"  # 1 byte unsigned
 
 class ClientHandler(threading.Thread):
     def __init__(self, address, protocol, storage_path, shutdown_event, log, on_finish_callback=None, on_update_storage=None, access_storage=None):
@@ -34,16 +34,28 @@ class ClientHandler(threading.Thread):
         path = self.storage_path + "/" + filename
 
         if op_type == CLIENT_TYPE_DOWNLOAD:
-            if not self._validate_download(file_size, filename):
+            if not self._validate_download(filename):
                 return
             self.on_update_storage(file_size)
-            self.protocol.send(APP_CODE_READY.to_bytes())
+            size = _get_file_size(path)
+            response_seg = struct.pack(
+                APP_RES_FORMAT,
+                APP_CODE_READY,
+                    size
+            )
+            self.protocol.send(response_seg)
             file_manager.send_file(path)
         if op_type == CLIENT_TYPE_UPLOAD:
             if not self._validate_upload(file_size, filename):
                 return
-            self.protocol.send(APP_CODE_READY.to_bytes())
-            file_manager.receive_file(path)
+            self.on_update_storage(file_size)
+            response_seg = struct.pack(
+                APP_RES_FORMAT,
+                APP_CODE_READY,
+                0
+            )
+            self.protocol.send(response_seg)
+            file_manager.receive_file(path, file_size)
 
         self.on_finish_callback(self.address)
 
@@ -62,14 +74,10 @@ class ClientHandler(threading.Thread):
             self.log.error(f"Failed to parse payload: {error}")
             return None
 
-    def _validate_download(self, file_size, filename):
+    def _validate_download(self, filename):
         if not self._file_exists(filename):
             self.log.error(f"File not found: {filename}")
             self._end_conn(APP_ERR_FILE_NOT_FOUND)
-            return False
-        if file_size > MAX_FILE_SIZE:
-            self.log.error(f"File too large: {filename}")
-            self._end_conn(APP_ERR_GENERIC)
             return False
 
         return True
@@ -94,6 +102,13 @@ class ClientHandler(threading.Thread):
         return False
 
     def _end_conn(self, status_code):
-        response_seg = status_code.to_bytes()
+        response_seg = struct.pack(
+            APP_RES_FORMAT,
+            status_code,
+            0
+        )
         self.protocol.send(response_seg)
         self.on_finish_callback(self.address)
+
+def _get_file_size(file_path):
+    return os.path.getsize(file_path)

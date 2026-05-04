@@ -79,7 +79,7 @@ class StopAndWait(ReliableProtocol):
     def close(self):
         self.socket.settimeout(self._timeout)
 
-        fin = FinishedSegment(self._send_seq)
+        fin = FinishedSegment()
 
         while True:
             self.socket.sendto(fin.to_bytes(), self.address)
@@ -89,7 +89,7 @@ class StopAndWait(ReliableProtocol):
                 raw, _ = self.socket.recvfrom(MAX_PACKET_SIZE)
                 seg = Segment.from_bytes(raw)
 
-                if seg.is_ack_segment() and seg.get_ack_number() == self._send_seq:
+                if seg.is_ack_segment() and seg.get_ack_number() == 0:
                     self.log.debug("FIN ACK received. Closing socket")
                     self.socket.close()
                     return
@@ -136,7 +136,7 @@ class StopAndWait(ReliableProtocol):
 
     def __handle_fin_segment(self):
         self.log.info("FIN segment received. Peer is closing")
-        ack = AckSegment(self._expected_seq)
+        ack = AckSegment(0)
         self.socket.sendto(ack.to_bytes(), self.address)
         end_time = time.time() + 2
 
