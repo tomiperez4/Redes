@@ -36,15 +36,3 @@ class ReliableProtocol(ABC):
     @abstractmethod
     def recv(self):
         pass
-
-   # @abstractmethod
-   # def is_done(self):
-   #     pass
-
-    # @abstractmethod
-    # def send(self, address, path):
-    #    pass
-
-    # @abstractmethod
-    # def receive(self, address, path):
-    #    pass

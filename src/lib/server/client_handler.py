@@ -15,11 +15,12 @@ APP_ERR_GENERIC = 200
 APP_RES_FORMAT = "!B"  # 1 byte unsigned
 
 class ClientHandler(threading.Thread):
-    def __init__(self, address, protocol, storage_path, log, on_finish_callback=None, on_update_storage=None, access_storage=None):
+    def __init__(self, address, protocol, storage_path, shutdown_event, log, on_finish_callback=None, on_update_storage=None, access_storage=None):
         super().__init__()
         self.address = address
         self.protocol = protocol
         self.storage_path = storage_path
+        self.shutdown_event = shutdown_event
         self.log = log
         self.on_finish_callback = on_finish_callback
         self.on_update_storage=on_update_storage
@@ -29,12 +30,13 @@ class ClientHandler(threading.Thread):
         payload = self.protocol.recv()
 
         op_type, file_size, filename = self._get_data(payload)
-        file_manager = FileManager(self.protocol, self.log.clone("CLIENT (FILE MANAGER)"))
+        file_manager = FileManager(self.protocol, self.log.clone("CLIENT (FILE MANAGER)"), shutdown_event=self.shutdown_event)
         path = self.storage_path + "/" + filename
 
         if op_type == CLIENT_TYPE_DOWNLOAD:
             if not self._validate_download(file_size, filename):
                 return
+            self.on_update_storage(file_size)
             self.protocol.send(APP_CODE_READY.to_bytes())
             file_manager.send_file(path)
         if op_type == CLIENT_TYPE_UPLOAD:

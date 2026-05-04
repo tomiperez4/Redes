@@ -10,7 +10,6 @@ APP_ERR_NO_SPACE = 201
 APP_ERR_FILE_NOT_FOUND = 202
 APP_ERR_GENERIC = 200
 
-
 class Client:
     def __init__(self, server_ip, server_port, verbose, quiet, protocol_id):
         self.skt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -49,10 +48,8 @@ class Client:
                     f"Unexpected error. Could not download ({status_code})")
                 return None
             elif status_code == APP_CODE_READY:
-                self.log.info(f"Server is ready. Connection established")
+                self.log.info(f"Server is ready. Connection established ({status_code})")
                 return protocol
-
-            print(f"{status_code}")
 
         except Exception as error:
             self.log.error(f"Could not start connection with server: {error}")

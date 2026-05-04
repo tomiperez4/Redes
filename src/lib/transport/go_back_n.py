@@ -39,17 +39,14 @@ class GoBackN(ReliableProtocol):
 
         # Threads
         self.sender_thread = threading.Thread(
-            target=self._sender_loop, daemon=True)
+            target=self.__sender_loop, daemon=True)
         self.receiver_thread = threading.Thread(
-            target=self._receiver_loop, daemon=True)
+            target=self.__receiver_loop, daemon=True)
 
         self.sender_thread.start()
         self.receiver_thread.start()
 
-    # funciones de la API pública de gbn
-    def start(self, address):
-        self.socket.settimeout(self.timeout_interval)
-        self.address = address
+    # Public API
 
     def send(self, data):
         with self.lock:
@@ -83,9 +80,9 @@ class GoBackN(ReliableProtocol):
             time.sleep(0.1)
         self.log.info("Connection closed successfully.")
 
-    # funciones del sender
+    # Sender
 
-    def _sender_loop(self):
+    def __sender_loop(self):
         while not self.done:
             self.send_event.wait()
             self.send_event.clear()
@@ -120,27 +117,27 @@ class GoBackN(ReliableProtocol):
                 self.socket.sendto(pkt.to_bytes(), self.address)
                 self.log.debug(f"Sent idx={current_idx} seq={seq}")
 
-    # receptor
+    # Receiver
 
-    def _receiver_loop(self):
+    def __receiver_loop(self):
         while not self.done:
             try:
                 raw, addr = self.socket.recvfrom(MAX_PACKET_SIZE)
                 seg = Segment.from_bytes(raw)
 
                 if seg.is_data_segment():
-                    self._handle_incoming_data(seg, addr)
+                    self.__handle_incoming_data(seg, addr)
 
                 elif seg.is_ack_segment():
-                    self._handle_incoming_ack(seg.ack)
+                    self.__handle_incoming_ack(seg.ack)
 
                 elif seg.is_finished_segment():
-                    self._handle_incoming_finished(seg.seq, addr)
+                    self.__handle_incoming_finished(seg.seq, addr)
 
             except socket_module.timeout:
-                self._handle_timeout()
+                self.__handle_timeout()
 
-    def _handle_incoming_data(self, seg, addr):
+    def __handle_incoming_data(self, seg, addr):
         with self.lock:
             if seg.seq == self.expected_seq:
                 self.log.debug(f"Data received in order: seq={seg.seq}")
@@ -156,7 +153,7 @@ class GoBackN(ReliableProtocol):
             ack_pkt = AckSegment(last_ack)
             self.socket.sendto(ack_pkt.to_bytes(), addr)
 
-    def _handle_incoming_ack(self, ack_val):
+    def __handle_incoming_ack(self, ack_val):
         with self.lock:
             found_idx = -1
             for idx in range(self.base, self.next_idx):
@@ -175,7 +172,7 @@ class GoBackN(ReliableProtocol):
                         self.base}")
                 self.send_event.set()
 
-    def _handle_incoming_finished(self, seq, addr):
+    def __handle_incoming_finished(self, seq, addr):
         self.log.debug("FIN received")
         with self.lock:
             if seq == self.expected_seq:
@@ -190,9 +187,9 @@ class GoBackN(ReliableProtocol):
             ack_pkt = AckSegment(last_ack)
             self.socket.sendto(ack_pkt.to_bytes(), addr)
 
-    # funciones auxiliares
+    # Helpers
 
-    def _handle_timeout(self):
+    def __handle_timeout(self):
         self.log.warning("Timeout! Retransmitting window...")
         with self.lock:
             self.sent_times.clear()  # Limpiar para recalcular RTT en retransmisión

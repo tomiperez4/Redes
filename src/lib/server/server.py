@@ -1,6 +1,5 @@
 import socket
 import os
-import math
 import threading
 
 from concurrent.futures import ThreadPoolExecutor
@@ -14,7 +13,7 @@ class Server:
 
         # Storage
         self.storage_path = storage_path
-        self.current_storage_mb = get_directory_total_size(self.storage_path)
+        self.current_storage = get_directory_total_size(self.storage_path)
         self.update_storage_lock = threading.Lock()
         self.access_storage_lock = threading.Lock()
 
@@ -31,6 +30,9 @@ class Server:
             self.log.error(f"Failed to bind socket: {error}")
             return
 
+        # To gracefully close all client handlers
+        shutdown_event = threading.Event()
+
         try:
             listener = RdtListener(self.socket, self.log.clone("RDT-LISTENER"))
             while True:
@@ -41,6 +43,7 @@ class Server:
                     address,
                     protocol,
                     self.storage_path,
+                    shutdown_event,
                     self.log.clone("CLIENT-HANDLER"),
                     on_finish_callback = listener.remove_client,
                     on_update_storage=self.update_storage,
@@ -48,17 +51,22 @@ class Server:
                 )
                 client_handler.start()
 
+        except KeyboardInterrupt:
+            self.log.info("Closing server")
+            shutdown_event.set()
+            self.socket.close()
+
         except Exception as error:
             self.log.error(f"Failed to start Client Listener: {error}")
 
     def update_storage(self, size_to_add):
         with self.update_storage_lock:
-            self.current_storage_mb += size_to_add
-            self.log.info(f"Storage updated: {self.current_storage_mb} MB")
+            self.current_storage += size_to_add
+            self.log.info(f"Storage updated: {self.current_storage}B")
 
     def access_storage(self):
         with self.access_storage_lock:
-            return self.current_storage_mb
+            return self.current_storage
 
 def get_directory_total_size(directory_path):
     total_bytes = 0
@@ -75,5 +83,4 @@ def get_directory_total_size(directory_path):
         print(f"Failed to get initial storage: {e}")
         return 0
 
-    size_in_mb = math.ceil(total_bytes / (1024 * 1024))
-    return size_in_mb
+    return total_bytes
