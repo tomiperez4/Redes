@@ -7,7 +7,7 @@ from lib.transport.segments.ack_segment import AckSegment
 from lib.transport.segments.data_segment import DataSegment
 from lib.transport.segments.segment import Segment
 from lib.transport.rdt import ReliableProtocol
-from lib.constants.protocol_constants import MAX_SEQ, WINDOW_SIZE
+from lib.constants.protocol_constants import MAX_SEQ, WINDOW_SIZE, ALPHA, BETA
 from lib.constants.socket_constants import MAX_PACKET_SIZE
 from lib.transport.segments.finished_segment import FinishedSegment
 
@@ -31,7 +31,7 @@ class GoBackN(ReliableProtocol):
         # cositas para el receiver
         self.expected_seq = 0
 
-        # cositas para los hilos
+        # cositas para los hilos-
         self.closed = False
         self.done = False
         self.send_event = threading.Event()
@@ -135,6 +135,9 @@ class GoBackN(ReliableProtocol):
                     self.__handle_incoming_finished(seg.seq, addr)
 
             except socket_module.timeout:
+                with self.lock:
+                    if self.base == self.next_idx:
+                        continue
                 self.__handle_timeout()
 
     def __handle_incoming_data(self, seg, addr):
@@ -188,6 +191,17 @@ class GoBackN(ReliableProtocol):
             self.socket.sendto(ack_pkt.to_bytes(), addr)
 
     # Helpers
+    def _update_rto(self, sample):
+        if self.estimated_rtt < 0:
+            self.estimated_rtt = sample
+        else:
+            self.estimated_rtt = (
+                1 - ALPHA) * self.estimated_rtt + ALPHA * sample
+
+        self.dev_rtt = (1 - BETA) * self.dev_rtt + BETA * \
+            abs(self.estimated_rtt - sample)
+        self.timeout_interval = self.estimated_rtt + 4 * self.dev_rtt
+        self.socket.settimeout(self.timeout_interval)
 
     def __handle_timeout(self):
         self.log.warning("Timeout! Retransmitting window...")

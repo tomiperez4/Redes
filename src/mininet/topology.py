@@ -1,11 +1,9 @@
-import sys
-import os
-import time
-from time import perf_counter
 from mininet.link import TCLink
 from mininet.topo import Topo
 from mininet.net import Mininet
+from mininet.cli import CLI
 from mininet.node import OVSController
+
 
 class LinearTopology(Topo):
     def build(self):
@@ -19,47 +17,8 @@ class LinearTopology(Topo):
         self.addLink(server, s2)
 
 
-def run(mode, protocol, file):
+if __name__ == '__main__':
     net = Mininet(topo=LinearTopology(), link=TCLink, controller=OVSController)
     net.start()
-
-    client = net.get('client')
-    server = net.get('server')
-
-    filename = os.path.basename(file)
-
-    server.cmd(
-        f'python3 ../start_server.py -H {server.IP()} -p 8000 -s ../storage -q &'
-    )
-
-    storage_path = "../storage"
-    final_path = os.path.join(storage_path, filename)
-    tmp_path = final_path + ".tmp"
-
-    start = perf_counter()
-
-    if mode == "upload":
-        client.cmd(
-            f'python3 ../upload.py -H {server.IP()} -p 8000 -s {file} -n {filename} -r {protocol}'
-        )
-
-    elif mode == "download":
-        client.cmd(
-            f'python3 ../download.py -H {server.IP()} -p 8000 -n {filename} -r {protocol}'
-        )
-
-    total_time = perf_counter() - start
-
-    while os.path.exists(tmp_path):
-        time.sleep(0.1)
-
+    CLI(net)
     net.stop()
-    return total_time
-
-if __name__ == '__main__':
-    mode = sys.argv[1]
-    protocol = sys.argv[2]
-    file = sys.argv[3]
-
-    t = run(mode, protocol, file)
-    print(f'Time to completion: {t} sec')

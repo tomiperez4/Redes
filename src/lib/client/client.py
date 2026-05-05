@@ -53,7 +53,7 @@ class Client:
                 return None
             elif status_code == APP_CODE_READY:
                 self.log.info(f"Server is ready. Connection established ({status_code})")
-                return protocol, file_size
+                return file_size
 
         except Exception as error:
             self.log.error(f"Could not start connection with server: {error}")

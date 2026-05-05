@@ -1,12 +1,14 @@
 import socket as socket_module
 import time
 
+from lib.constants.protocol_constants import BETA, ALPHA
 from lib.constants.socket_constants import MAX_PACKET_SIZE
 from lib.transport.segments.ack_segment import AckSegment
 from lib.transport.segments.data_segment import DataSegment
 from lib.transport.segments.finished_segment import FinishedSegment
 from lib.transport.segments.segment import Segment
 from lib.transport.rdt import ReliableProtocol
+from socket import error as sock_err
 
 INITIAL_TIMEOUT = 0.5
 
@@ -33,6 +35,10 @@ class StopAndWait(ReliableProtocol):
 
             ack = self.__wait_for_ack(self._send_seq)
 
+            if ack is None:
+                self.log.warning(f"Timeout. Resending data with seq={self._send_seq}")
+                continue
+
             if ack.is_finished_segment():
                 self.__handle_fin_segment()
                 return 1
@@ -45,7 +51,6 @@ class StopAndWait(ReliableProtocol):
                 self._send_seq = 1 - self._send_seq
                 return 0
 
-            self.log.warning(f"Timeout. Resending data with seq={self._send_seq}")
 
     def recv(self):
         while True:
@@ -136,10 +141,18 @@ class StopAndWait(ReliableProtocol):
 
     def __handle_fin_segment(self):
         self.log.info("FIN segment received. Peer is closing")
-        ack = AckSegment(0)
-        self.socket.sendto(ack.to_bytes(), self.address)
         end_time = time.time() + 2
+        ack = AckSegment(0)
 
+        while time.time() < end_time:
+            try:
+                self.socket.sendto(ack.to_bytes(), self.address)
+                time.sleep(self._timeout)
+            except sock_err:
+                self.socket.close()
+                return None
+
+        '''
         while time.time() < end_time:
             seg_rep = self.__try_recv()
 
@@ -150,8 +163,9 @@ class StopAndWait(ReliableProtocol):
         self.socket.close()
         self.log.info("Received FIN packet. Socket closed")
         return None
-    '''
-    def __update_rto(self, sample_rtt: float):
+        '''
+
+    def _update_rto(self, sample_rtt: float):
         if self._srtt is None:
             self._srtt = sample_rtt
             self._rttvar = sample_rtt / 2
@@ -164,4 +178,4 @@ class StopAndWait(ReliableProtocol):
 
         self._timeout = self._srtt + 4 * self._rttvar
         self.socket.settimeout(self._timeout)
-    '''
+
