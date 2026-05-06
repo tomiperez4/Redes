@@ -24,10 +24,11 @@ class Server:
         self.executor = ThreadPoolExecutor(max_workers=workers)
         self.log = log
 
-    """
-    Starts up the server by binding it to a socket using the given address.
-    """
+
     def start(self):
+        """
+        Starts up the server by binding it to a socket using the given address.
+        """
         try:
             self.socket.bind(self.address)
             self.log.debug(f"Server listening on {self.address}")
