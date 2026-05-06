@@ -1,12 +1,18 @@
 import struct
 from lib.transport.segments.segment import Segment
-from lib.transport.segments.constants import SYN_ACK_FLAG
-
+from lib.constants.segment_constants import SYN_ACK_FLAG
 
 class SynackSegment(Segment):
+    """
+    Segment used as a response to a SYN request (SYN-ACK).
+    """
     PAYLOAD_FORMAT = "!H"
 
     def __init__(self, port, seq=0):
+        """
+        Initializes a SYN-ACK segment.
+        It contains the port number assigned by the server for the data transfer.
+        """
         super().__init__(seq)
         self.port = port
 

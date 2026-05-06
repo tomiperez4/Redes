@@ -12,6 +12,9 @@ from lib.transport.go_back_n import GoBackN
 
 
 class RdtListener:
+    """
+    Initializes a listener for incoming UDP packets that manages the initial handshake with clients.
+    """
     def __init__(self, skt, log):
         self.skt = skt
         self.log = log
@@ -19,6 +22,9 @@ class RdtListener:
         self.client_lock = threading.Lock()
 
     def handle_incoming(self):
+        """
+        Handles a single incoming packet.
+        """
         try:
             raw, address = self.skt.recvfrom(BUFFER_SIZE)
             self.log.debug(f"Packet received from {address}")
@@ -35,10 +41,10 @@ class RdtListener:
                 return None
 
             if not segment.is_syn_segment():
-                self.log.warning("Expected handshake request segment")
+                self.log.warning("Expected SYN segment")
                 return None
             protocol_type = segment.get_protocol()
-            # Assign new port for incoming client
+
             socket_client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             socket_client.bind((self.skt.getsockname()[0], 0))
 
@@ -57,11 +63,17 @@ class RdtListener:
             self.log.error(f"RDTListener error: {error}")
 
     def _ack_error(self, error_msg, address):
+        """
+        Sends an error response to the client, indicating the connection is rejected.
+        """
         self.log.warning(error_msg)
-        h_error = FinishedSegment()
-        self.skt.sendto(h_error.to_bytes(), address)
+        pkt = FinishedSegment()
+        self.skt.sendto(pkt.to_bytes(), address)
 
     def _initialize_protocol(self, protocol_type, socket_client, address):
+        """
+        Initializes the appropriate reliable transport protocol for the client.
+        """
         if protocol_type == PROTOCOL_GO_BACK_N:
             return GoBackN(socket_client, address, self.log.clone("GO-BACK-N"))
         elif protocol_type == PROTOCOL_STOP_AND_WAIT:
@@ -71,6 +83,9 @@ class RdtListener:
             return None
 
     def remove_client(self, address):
+        """
+        Removes a client from the active clients list.
+        """
         with self.client_lock:
             del self.clients[address]
             self.log.info(f"Client finished (remaining: {len(self.clients)})")

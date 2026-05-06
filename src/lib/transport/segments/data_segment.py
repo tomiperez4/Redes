@@ -1,15 +1,20 @@
 from lib.transport.segments.segment import Segment
-from lib.transport.segments.constants import MF_FLAG
 
 
 class DataSegment(Segment):
-    def __init__(self, seq, data, mf=False):
+    """
+    Segment used to transfer application data.
+    Payload is variable and contains the actual file data.
+    """
+    def __init__(self, seq, data):
+        """
+        Initializes a data segment containing the given data.
+        """
         super().__init__(seq)
         self.data = data
-        self.mf = mf
 
     def get_flags(self):
-        return MF_FLAG if self.mf else 0
+        return 0
 
     def get_payload(self):
         return self.data

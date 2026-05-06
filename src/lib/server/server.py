@@ -8,10 +8,12 @@ from lib.server.client_handler import ClientHandler
 
 
 class Server:
+    """
+    Initializes the server with the given host, port and storage path.
+    """
     def __init__(self, host, port, workers, storage_path, log):
         self.address = (host, port)
 
-        # Storage
         self.storage_path = storage_path
         self.current_storage = get_directory_total_size(self.storage_path)
         self.update_storage_lock = threading.Lock()
@@ -22,6 +24,9 @@ class Server:
         self.executor = ThreadPoolExecutor(max_workers=workers)
         self.log = log
 
+    """
+    Starts up the server by binding it to a socket using the given address.
+    """
     def start(self):
         try:
             self.socket.bind(self.address)
@@ -30,7 +35,6 @@ class Server:
             self.log.error(f"Failed to bind socket: {error}")
             return
 
-        # To gracefully close all client handlers
         shutdown_event = threading.Event()
 
         try:
@@ -60,15 +64,24 @@ class Server:
             self.log.error(f"Failed to start Client Listener: {error}")
 
     def update_storage(self, size_to_add):
+        """
+        Updates the storage size of the client given a file size.
+        """
         with self.update_storage_lock:
             self.current_storage += size_to_add
             self.log.info(f"Storage updated: {self.current_storage}B")
 
     def access_storage(self):
+        """
+        Returns the current available storage size.
+        """
         with self.access_storage_lock:
             return self.current_storage
 
 def get_directory_total_size(directory_path):
+    """
+    Returns the total size of the given directory.
+    """
     total_bytes = 0
 
     if not os.path.exists(directory_path):
