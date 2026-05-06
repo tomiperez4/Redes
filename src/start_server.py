@@ -3,6 +3,7 @@ from lib.application.server_parser import ServerParser
 from lib.server.server import Server
 from lib.logger import Logger
 from lib.constants.log_file_constants import *
+from lib.constants.server_constants import WORKERS
 
 
 def main():
@@ -18,7 +19,7 @@ def main():
         except OSError as error:
             log.error(f"Failed to create storage directory: {error}")
             return
-    server = Server(host=args.host, port=args.port, workers=5,
+    server = Server(host=args.host, port=args.port, workers={WORKERS},
                     storage_path=storage_path, log=log)
 
     try:
