@@ -2,7 +2,12 @@ import socket
 import struct
 
 from lib.common import TIMEOUT, CLIENTS_LOG_FILE
-from lib.server.constants import ERR_NO_SPACE, ERR_FILE_NOT_FOUND, ERR_GENERIC, CODE_READY
+from lib.server.constants import (
+    ERR_NO_SPACE,
+    ERR_FILE_NOT_FOUND,
+    ERR_GENERIC,
+    CODE_READY,
+)
 from lib.logger import Logger
 
 
@@ -16,11 +21,7 @@ class Client:
         self.server_addr = (server_ip, server_port)
         self.protocol_id = protocol_id
         self.protocol = None
-        self.log = Logger(
-            "CLIENT",
-            CLIENTS_LOG_FILE,
-            verbose=verbose,
-            quiet=quiet)
+        self.log = Logger("CLIENT", CLIENTS_LOG_FILE, verbose=verbose, quiet=quiet)
 
     def connect_to_server(self):
         """
@@ -54,18 +55,19 @@ class Client:
 
             if status_code == ERR_NO_SPACE:
                 self.log.error(
-                    f"Server's capacity is full. Could not upload ({status_code})")
+                    f"Server's capacity is full. Could not upload ({status_code})"
+                )
                 return None
             elif status_code == ERR_FILE_NOT_FOUND:
-                self.log.error(
-                    f"File not found. ({status_code})")
+                self.log.error(f"File not found. ({status_code})")
                 return None
             elif status_code == ERR_GENERIC:
-                self.log.error(
-                    f"Operation failed. ({status_code})")
+                self.log.error(f"Operation failed. ({status_code})")
                 return None
             elif status_code == CODE_READY:
-                self.log.info(f"Server is ready. Connection established ({status_code})")
+                self.log.info(
+                    f"Server is ready. Connection established ({status_code})"
+                )
                 return file_size
             else:
                 self.log.error(f"Unknown status code received: {status_code}")

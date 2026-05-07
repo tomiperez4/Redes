@@ -5,23 +5,21 @@ import time
 
 import pytest
 
-# ─────────────────────────────────────────────────────────────────────────────
 # PATHS
-# ─────────────────────────────────────────────────────────────────────────────
 
-TESTS_DIR      = os.path.dirname(os.path.abspath(__file__))
-SRC_DIR        = os.path.dirname(TESTS_DIR)
+
+TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
+SRC_DIR = os.path.dirname(TESTS_DIR)
 SERVER_STORAGE = os.path.join(TESTS_DIR, "server_storage")
 CLIENT_STORAGE = os.path.join(TESTS_DIR, "client_storage")
 
-HOST      = "127.0.0.1"
-PORT      = 9090
+HOST = "127.0.0.1"
+PORT = 9090
 BASE_FILE = "test_5mb.jpg"
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Helpers
-# ─────────────────────────────────────────────────────────────────────────────
+
 
 def wait_for_file(path: str, timeout: float = 5.0, interval: float = 0.1):
     deadline = time.time() + timeout
@@ -30,6 +28,7 @@ def wait_for_file(path: str, timeout: float = 5.0, interval: float = 0.1):
             return True
         time.sleep(interval)
     return False
+
 
 def md5(path: str):
     h = hashlib.md5()
@@ -46,12 +45,18 @@ def stored_name(protocol: str):
 def run_upload(protocol: str):
     return subprocess.run(
         [
-            "python3", "upload.py",
-            "-H", HOST,
-            "-p", str(PORT),
-            "-s", os.path.join(CLIENT_STORAGE, BASE_FILE),
-            "-n", stored_name(protocol),
-            "-r", protocol,
+            "python3",
+            "upload.py",
+            "-H",
+            HOST,
+            "-p",
+            str(PORT),
+            "-s",
+            os.path.join(CLIENT_STORAGE, BASE_FILE),
+            "-n",
+            stored_name(protocol),
+            "-r",
+            protocol,
             "-q",
         ],
         cwd=SRC_DIR,
@@ -64,12 +69,18 @@ def run_upload(protocol: str):
 def run_download(protocol: str):
     return subprocess.run(
         [
-            "python3", "download.py",
-            "-H", HOST,
-            "-p", str(PORT),
-            "-d", os.path.join(CLIENT_STORAGE, stored_name(protocol)),
-            "-n", BASE_FILE,
-            "-r", protocol,
+            "python3",
+            "download.py",
+            "-H",
+            HOST,
+            "-p",
+            str(PORT),
+            "-d",
+            os.path.join(CLIENT_STORAGE, stored_name(protocol)),
+            "-n",
+            BASE_FILE,
+            "-r",
+            protocol,
             "-q",
         ],
         cwd=SRC_DIR,
@@ -78,10 +89,6 @@ def run_download(protocol: str):
         text=True,
     )
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Fixtures
-# ─────────────────────────────────────────────────────────────────────────────
 
 @pytest.fixture(scope="session", autouse=True)
 def check_test_data():
@@ -99,10 +106,14 @@ def check_test_data():
 def server(check_test_data):
     proc = subprocess.Popen(
         [
-            "python3", "start_server.py",
-            "-H", HOST,
-            "-p", str(PORT),
-            "-s", SERVER_STORAGE,
+            "python3",
+            "start_server.py",
+            "-H",
+            HOST,
+            "-p",
+            str(PORT),
+            "-s",
+            SERVER_STORAGE,
             "-q",
         ],
         cwd=SRC_DIR,

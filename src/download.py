@@ -5,13 +5,10 @@ from lib.client.download_client import DownloadClient
 if __name__ == "__main__":
     parser = ClientParser(is_upload=False)
     args = parser.parse()
-    protocol_id = PROTOCOL_STOP_AND_WAIT if args.protocol == 'sw' else PROTOCOL_GO_BACK_N
+    protocol_id = (
+        PROTOCOL_STOP_AND_WAIT if args.protocol == "sw" else PROTOCOL_GO_BACK_N
+    )
     client = DownloadClient(
-        args.host,
-        args.port,
-        args.verbose,
-        args.quiet,
-        protocol_id,
-        args.dst,
-        args.name)
+        args.host, args.port, args.verbose, args.quiet, protocol_id, args.dst, args.name
+    )
     client.run_process()

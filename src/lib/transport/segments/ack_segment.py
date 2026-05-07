@@ -7,6 +7,7 @@ class AckSegment(Segment):
     Segment used to acknowledge received data.
     Contains the acknowledgment number (ack).
     """
+
     def __init__(self, ack_number):
         super().__init__(ack_number)
         self.ack = ack_number

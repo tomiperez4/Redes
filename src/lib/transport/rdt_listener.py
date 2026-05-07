@@ -14,6 +14,7 @@ class RdtListener:
     """
     Initializes a listener for incoming UDP packets that manages the initial handshake with clients.
     """
+
     def __init__(self, skt, log):
         self.skt = skt
         self.log = log
@@ -53,10 +54,11 @@ class RdtListener:
 
                 syn_ack = SynackSegment(port)
                 self.skt.sendto(syn_ack.to_bytes(), address)
-            self.log.info(
-                f"New client: {address} (total: {len(self.clients)})")
-            return self._initialize_protocol(
-                protocol_type, socket_client, address), address
+            self.log.info(f"New client: {address} (total: {len(self.clients)})")
+            return (
+                self._initialize_protocol(protocol_type, socket_client, address),
+                address,
+            )
 
         except Exception as error:
             self.log.error(f"RDTListener error: {error}")

@@ -19,15 +19,19 @@ def main():
         except OSError as error:
             log.error(f"Failed to create storage directory: {error}")
             return
-    server = Server(host=args.host, port=args.port, workers=WORKERS,
-                    storage_path=storage_path, log=log)
+    server = Server(
+        host=args.host,
+        port=args.port,
+        workers=WORKERS,
+        storage_path=storage_path,
+        log=log,
+    )
 
     try:
         log.info(f"Starting server on {args.host}:{args.port}")
         server.start()
     except Exception as error:
-        log.error(
-            f"Failed to start server on {
+        log.error(f"Failed to start server on {
                 args.host}:{
                 args.port}: {error}")
 

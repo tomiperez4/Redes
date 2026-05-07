@@ -3,10 +3,12 @@ import os
 from lib.common import BUFFER_SIZE
 from lib.transport.rdt import ReliableProtocol
 
+
 class FileManager:
     """
     Handles file transfer over a reliable protocol.
     """
+
     def __init__(self, protocol: ReliableProtocol, log, shutdown_event=None):
         """
         Initializes the file manager.
@@ -22,7 +24,9 @@ class FileManager:
         """
         try:
             with open(path, "rb") as file:
-                while True and (self.shutdown_event is None or not self.shutdown_event.is_set()):
+                while True and (
+                    self.shutdown_event is None or not self.shutdown_event.is_set()
+                ):
                     chunk = file.read(BUFFER_SIZE)
                     if not chunk:
                         break
@@ -52,7 +56,9 @@ class FileManager:
 
         try:
             with open(temp_file, "wb") as output_file:
-                while True and (self.shutdown_event is None or not self.shutdown_event.is_set()):
+                while True and (
+                    self.shutdown_event is None or not self.shutdown_event.is_set()
+                ):
                     chunk = self.protocol.recv()
                     if chunk is None:
                         break
@@ -60,7 +66,9 @@ class FileManager:
 
             actual_file_size = os.path.getsize(temp_file)
 
-            if (self.shutdown_event is None or not self.shutdown_event.is_set()) and actual_file_size == file_size:
+            if (
+                self.shutdown_event is None or not self.shutdown_event.is_set()
+            ) and actual_file_size == file_size:
                 self.log.info("File transfer complete")
                 os.rename(temp_file, output_path)
                 return

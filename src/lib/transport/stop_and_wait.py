@@ -3,7 +3,7 @@ import time
 import threading
 import queue
 
-from lib.common import MAX_PACKET_SIZE
+from lib.common import MAX_PACKET_SIZE, MAX_TIMEOUT_ITVL
 from lib.transport.segments.ack_segment import AckSegment
 from lib.transport.segments.finished_segment import FinishedSegment
 from lib.transport.segments.segment import Segment
@@ -16,6 +16,7 @@ class StopAndWait(ReliableProtocol):
     """
     Implementation of the Stop-and-Wait reliable transport protocol.
     """
+
     def __init__(self, socket, address, log):
         super().__init__(socket, log)
         self.address = address
@@ -30,10 +31,9 @@ class StopAndWait(ReliableProtocol):
         self._reader_thread = threading.Thread(target=self.__reader_loop, daemon=True)
         self._reader_thread.start()
 
-
     def send(self, data: bytes):
         """
-        Sends data reliably using Stop-and-Wait ARQ.
+        Sends data reliably.
 
         Steps:
         1. Sends data packet
@@ -57,7 +57,7 @@ class StopAndWait(ReliableProtocol):
             if ack is None:
                 retransmitted = True
                 self.log.warning(f"Timeout. Resending data with seq={self._send_seq}")
-                self.timeout_interval = min(self.timeout_interval * 2, 0.8)
+                self.timeout_interval = min(self.timeout_interval * 2, MAX_TIMEOUT_ITVL)
                 continue
 
             if ack.is_finished_segment():
@@ -95,7 +95,7 @@ class StopAndWait(ReliableProtocol):
 
     def close(self):
         """
-        Gracefully closes the connection.
+        Closes the connection.
         Sends FIN repeatedly until ACK is received or timeout occurs.
         """
         self.socket.settimeout(self.timeout_interval)
@@ -115,12 +115,12 @@ class StopAndWait(ReliableProtocol):
                 self.log.debug("Timeout. Resending FINISHED segment")
                 continue
 
-
     def __reader_loop(self):
         """
         Classifies each arriving segment:
           - ACK / FIN
           - DATA
+        and handles it accordingly.
         """
         while True:
             try:
@@ -159,7 +159,6 @@ class StopAndWait(ReliableProtocol):
 
             else:
                 self.log.debug("Unknown segment type, ignoring")
-
 
     def __wait_for_ack(self, expected_ack):
         """

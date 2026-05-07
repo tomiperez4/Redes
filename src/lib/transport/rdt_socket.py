@@ -1,20 +1,26 @@
 import socket
 
-from lib.common import MAX_HSK_RETRIES, PROTOCOL_GO_BACK_N, PROTOCOL_STOP_AND_WAIT, BUFFER_SIZE
+from lib.common import (
+    MAX_HSK_RETRIES,
+    PROTOCOL_GO_BACK_N,
+    PROTOCOL_STOP_AND_WAIT,
+    BUFFER_SIZE,
+)
 from lib.transport.segments.segment import Segment
 from lib.transport.segments.syn_segment import SynSegment
 from lib.transport.go_back_n import GoBackN
 from lib.transport.stop_and_wait import StopAndWait
 
+
 class RdtSocket:
     """
     Wrapper for the UDP socket that incorporates an RDT protocol.
     """
+
     def __init__(self, skt, protocol_id, log):
         self.skt = skt
         self.log = log
         self.protocol_id = protocol_id
-
 
     def connect(self, address):
         """
@@ -28,7 +34,6 @@ class RdtSocket:
         if protocol is None:
             return None
         return protocol
-
 
     def _initial_handshake(self, address):
         """
@@ -51,7 +56,8 @@ class RdtSocket:
             except socket.timeout:
                 retry_attempts += 1
                 self.log.warning(
-                    f"SYN-ACK segment from server not received. Attempt {retry_attempts}/{MAX_HSK_RETRIES}")
+                    f"SYN-ACK segment from server not received. Attempt {retry_attempts}/{MAX_HSK_RETRIES}"
+                )
             except Exception as error:
                 self.log.error(f"Unexpected error: {error}")
 
@@ -67,4 +73,3 @@ class RdtSocket:
         elif self.protocol_id == PROTOCOL_GO_BACK_N:
             return GoBackN(self.skt, address, self.log.clone("CLIENT (GBN)"))
         return None
-

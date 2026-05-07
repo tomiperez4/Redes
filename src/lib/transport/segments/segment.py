@@ -8,6 +8,7 @@ class Segment(ABC):
     Base class for all protocol segments.
     [ seq (1 byte) | flags (1 byte) | payload (variable) ]
     """
+
     HEADER_FORMAT = "!BB"
     HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
 
@@ -47,23 +48,27 @@ class Segment(ABC):
         """
         if len(data) < Segment.HEADER_SIZE:
             raise ValueError("Data too short")
-        seq, flags = struct.unpack(
-            Segment.HEADER_FORMAT, data[:Segment.HEADER_SIZE])
+        seq, flags = struct.unpack(Segment.HEADER_FORMAT, data[: Segment.HEADER_SIZE])
         payload = data[Segment.HEADER_SIZE:]
         if flags & SYN_FLAG:
             from lib.transport.segments.syn_segment import SynSegment
+
             return SynSegment.from_payload(seq, payload)
         if flags & SYN_ACK_FLAG:
             from lib.transport.segments.synack import SynackSegment
+
             return SynackSegment.from_payload(seq, payload)
         if flags & ACK_FLAG:
             from lib.transport.segments.ack_segment import AckSegment
+
             return AckSegment(seq)
         if flags & FIN_FLAG:
             from lib.transport.segments.finished_segment import FinishedSegment
+
             return FinishedSegment(seq)
 
         from lib.transport.segments.data_segment import DataSegment
+
         return DataSegment(seq, payload)
 
     # Helpers

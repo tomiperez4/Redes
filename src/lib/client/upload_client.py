@@ -13,14 +13,16 @@ class UploadClient(Client):
     """
     Client that uploads a file to the server.
     """
-    def __init__(self, server_ip, server_port, verbose,
-                 quiet, protocol_id, src_path, filename):
+
+    def __init__(
+        self, server_ip, server_port, verbose, quiet, protocol_id, src_path, filename
+    ):
         """
         Initializes the upload client with the parameters obtained from the command line.
         """
         super().__init__(server_ip, server_port, verbose, quiet, protocol_id)
         self.src_path = src_path
-        self.filename = filename
+        self.filename = filename or os.path.basename(src_path)
 
         if not os.path.exists(self.src_path):
             self.log.error(f"File {self.src_path} does not exist")
@@ -44,7 +46,7 @@ class UploadClient(Client):
             "!BQ",
             CLIENT_TYPE_UPLOAD,
             size_in_bytes,
-        ) + self.filename.encode('utf-8')
+        ) + self.filename.encode("utf-8")
 
         return self._negotiate_transaction(self.protocol, payload)
 

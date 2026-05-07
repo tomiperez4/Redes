@@ -7,6 +7,7 @@ class FinishedSegment(Segment):
     Segment used to signal the end of a transmission.
     It does not contain payload.
     """
+
     def __init__(self, seq=0):
         """
         Initializes a FIN segment.

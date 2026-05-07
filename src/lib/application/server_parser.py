@@ -13,7 +13,8 @@ class ServerParser(BaseParser):
             "--storage",
             default=constants.DEFAULT_STORAGE_PATH,
             help=f"Storage directory path. Default: {
-                constants.DEFAULT_STORAGE_PATH}")
+                constants.DEFAULT_STORAGE_PATH}",
+        )
 
     def parse(self):
         return self.final_parser.parse_args()

@@ -11,6 +11,7 @@ class Server:
     """
     Initializes the server with the given host, port and storage path.
     """
+
     def __init__(self, host, port, workers, storage_path, log):
         self.address = (host, port)
 
@@ -23,7 +24,6 @@ class Server:
         self.clients = {}
         self.executor = ThreadPoolExecutor(max_workers=workers)
         self.log = log
-
 
     def start(self):
         """
@@ -50,9 +50,9 @@ class Server:
                     self.storage_path,
                     shutdown_event,
                     self.log.clone("CLIENT-HANDLER"),
-                    on_finish_callback = listener.remove_client,
+                    on_finish_callback=listener.remove_client,
                     on_update_storage=self.update_storage,
-                    access_storage=self.access_storage
+                    access_storage=self.access_storage,
                 )
                 client_handler.start()
 
@@ -78,6 +78,7 @@ class Server:
         """
         with self.access_storage_lock:
             return self.current_storage
+
 
 def get_directory_total_size(directory_path):
     """

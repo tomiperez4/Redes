@@ -2,10 +2,12 @@ import struct
 from lib.transport.segments.segment import Segment
 from lib.transport.segments.constants import SYN_ACK_FLAG
 
+
 class SynackSegment(Segment):
     """
     Segment used as a response to a SYN request (SYN-ACK).
     """
+
     PAYLOAD_FORMAT = "!H"
 
     def __init__(self, port, seq=0):
@@ -27,10 +29,7 @@ class SynackSegment(Segment):
     def from_payload(seq, data):
         f_size = struct.calcsize(SynackSegment.PAYLOAD_FORMAT)
         port = struct.unpack(SynackSegment.PAYLOAD_FORMAT, data[:f_size])[0]
-        return SynackSegment(
-            port,
-            seq
-        )
+        return SynackSegment(port, seq)
 
     def is_synack_segment(self):
         return True

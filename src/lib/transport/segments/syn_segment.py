@@ -7,6 +7,7 @@ class SynSegment(Segment):
     """
     Segment used to initiate a connection.
     """
+
     PAYLOAD_FORMAT = "!B"
 
     def __init__(self, protocol, seq=0):
@@ -36,12 +37,10 @@ class SynSegment(Segment):
         """
         f_size = struct.calcsize(SynSegment.PAYLOAD_FORMAT)
         protocol = struct.unpack(SynSegment.PAYLOAD_FORMAT, data[:f_size])[0]
-        return SynSegment(
-            protocol,
-            seq
-        )
+        return SynSegment(protocol, seq)
 
-    def is_syn_segment(self): return True
+    def is_syn_segment(self):
+        return True
 
     def get_protocol(self):
         return self.protocol

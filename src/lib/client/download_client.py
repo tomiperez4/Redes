@@ -12,13 +12,15 @@ class DownloadClient(Client):
     """
     Client that downloads a file from the server.
     """
-    def __init__(self, server_addr, server_port, verbose,
-                 quiet, protocol_id, dst_path, filename):
+
+    def __init__(
+        self, server_addr, server_port, verbose, quiet, protocol_id, dst_path, filename
+    ):
         """
         Initializes the download client with the parameters obtained from the command line.
         """
         super().__init__(server_addr, server_port, verbose, quiet, protocol_id)
-        self.dst_path = dst_path
+        self.dst_path = dst_path or filename
         self.filename = filename
 
     def connect_to_server(self):
@@ -35,12 +37,12 @@ class DownloadClient(Client):
             "!BQ",
             CLIENT_TYPE_DOWNLOAD,
             size_in_bytes,
-        ) + self.filename.encode('utf-8')
+        ) + self.filename.encode("utf-8")
 
         return self._negotiate_transaction(self.protocol, payload)
 
     def run_process(self):
-        """"
+        """ "
         Executes the download process.
         If the server accepts the request, it receives the file and saves it to the destination path.
         """
@@ -54,6 +56,7 @@ class DownloadClient(Client):
         end_time = time.time()
         duration = end_time - start_time
         self.log.info(f"Download completed in {duration:.2f} seconds")
+
 
 def has_enough_space(file_size):
     """

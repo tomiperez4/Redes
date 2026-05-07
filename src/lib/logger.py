@@ -10,7 +10,7 @@ class Logger:
     @staticmethod
     def clear_session_logs(files):
         for f in files:
-            with open(f, 'w') as _:
+            with open(f, "w") as _:
                 pass
 
     def __init__(self, prefix, log_file, verbose=False, quiet=False):
@@ -24,24 +24,28 @@ class Logger:
                 logger = logging.getLogger(log_file)
                 logger.setLevel(logging.DEBUG)
 
-                handler = logging.FileHandler(log_file, mode='a')
+                handler = logging.FileHandler(log_file, mode="a")
                 handler.setLevel(logging.DEBUG)
                 fmt = logging.Formatter(
-                    '%(asctime)s - [%(prefix)s] - %(levelname)s - %(message)s')
+                    "%(asctime)s - [%(prefix)s] - %(levelname)s - %(message)s"
+                )
                 handler.setFormatter(fmt)
                 logger.addHandler(handler)
 
                 if not self.quiet:
                     console_handler = logging.StreamHandler(sys.stdout)
                     console_fmt = logging.Formatter(
-                        '[%(levelname)s] [%(prefix)s] %(message)s')
+                        "[%(levelname)s] [%(prefix)s] %(message)s"
+                    )
                     console_handler.setFormatter(console_fmt)
 
                     if self.verbose:
                         console_handler.setLevel(logging.DEBUG)
                     else:
                         console_handler.setLevel(logging.INFO)
-                        console_handler.addFilter(lambda record: record.levelno < logging.WARNING)
+                        console_handler.addFilter(
+                            lambda record: record.levelno < logging.WARNING
+                        )
 
                     logger.addHandler(console_handler)
 
@@ -49,8 +53,7 @@ class Logger:
                 Logger._initialized = True
 
         base_logger = Logger._configured_loggers[log_file]
-        self.adapter = logging.LoggerAdapter(
-            base_logger, {'prefix': self.prefix})
+        self.adapter = logging.LoggerAdapter(base_logger, {"prefix": self.prefix})
 
     def clone(self, new_prefix):
         return Logger(new_prefix, self.log_file, self.verbose, self.quiet)

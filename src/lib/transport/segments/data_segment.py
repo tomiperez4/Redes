@@ -6,6 +6,7 @@ class DataSegment(Segment):
     Segment used to transfer application data.
     Payload is variable and contains the actual file data.
     """
+
     def __init__(self, seq, data):
         """
         Initializes a data segment containing the given data.
@@ -19,4 +20,5 @@ class DataSegment(Segment):
     def get_payload(self):
         return self.data
 
-    def is_data_segment(self): return True
+    def is_data_segment(self):
+        return True

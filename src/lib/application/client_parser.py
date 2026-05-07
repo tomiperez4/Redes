@@ -15,30 +15,30 @@ class ClientParser(BaseParser):
                 "--src",
                 default=constants.DEFAULT_UPLOAD_FILEPATH,
                 help=f"Source file path. Default: {
-                    constants.DEFAULT_UPLOAD_FILEPATH}")
+                    constants.DEFAULT_UPLOAD_FILEPATH}",
+            )
         else:
             self.final_parser.add_argument(
                 "-d",
                 "--dst",
-                default=constants.DEFAULT_DOWNLOAD_FILEPATH,
-                help=f"Destination path. Default: {
-                    constants.DEFAULT_DOWNLOAD_FILEPATH}")
+                default=None,
+                help="Destination file path. Default: current directory",
+            )
 
         self.final_parser.add_argument(
             "-n",
             "--name",
-            default=constants.DEFAULT_FILENAME,
-            help=f"File name. Default: {
-                constants.DEFAULT_FILENAME}")
+            default=None,
+            help="File name. Default: source file name",
+        )
         self.final_parser.add_argument(
             "-r",
             "--protocol",
-            choices=[
-                'sw',
-                'gbn'],
+            choices=["sw", "gbn"],
             default=constants.DEFAULT_PROTOCOL,
             help=f"Protocol. Default: {
-                constants.DEFAULT_PROTOCOL}")
+                constants.DEFAULT_PROTOCOL}",
+        )
 
     def parse(self):
         return self.final_parser.parse_args()
