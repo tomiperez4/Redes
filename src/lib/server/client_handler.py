@@ -48,7 +48,8 @@ class ClientHandler(threading.Thread):
             self.protocol.send(response_seg)
             file_manager.send_file(path)
         elif op_type == CLIENT_TYPE_UPLOAD:
-            if not self._validate_upload(file_size):
+            valid, net_size = self._validate_upload(file_size, filename)
+            if not valid:
                 return
             response_seg = struct.pack(
                 RES_FORMAT,
@@ -57,7 +58,7 @@ class ClientHandler(threading.Thread):
             )
             self.protocol.send(response_seg)
             file_manager.receive_file(path, file_size)
-            self.on_update_storage(file_size)
+            self.on_update_storage(net_size)
         else:
             self.log.error(f"Unknown operation type: {op_type}")
             self._end_conn(ERR_GENERIC)
@@ -92,20 +93,26 @@ class ClientHandler(threading.Thread):
             return False
         return True
 
-    def _validate_upload(self, file_size):
+    def _validate_upload(self, file_size, filename):
         """
         Validates that the upload file size is less than or equal to MAX_FILE_SIZE and
         that there is enough storage to save the file.
         """
         if file_size > MAX_FILE_SIZE:
-            self.log.error(f"File too large. Maximum file size is {MAX_FILE_SIZE / (1024*1024)} MB")
+            self.log.error(f"File too large. Maximum file size is {MAX_FILE_SIZE / (1024 * 1024)} MB")
             self._end_conn(ERR_SIZE_LIMIT_EXCEEDED)
-            return False
-        if self._is_storage_full(file_size):
+            return False, 0
+
+        path = self.storage_path + "/" + filename
+        existing_size = os.path.getsize(path) if os.path.exists(path) else 0
+        net_size = file_size - existing_size
+
+        if self._is_storage_full(net_size):
             self.log.error(f"Not enough storage to upload.")
             self._end_conn(ERR_NO_SPACE)
-            return False
-        return True
+            return False, 0
+
+        return True, net_size
 
     def _file_exists(self, filename):
         """
@@ -116,14 +123,14 @@ class ClientHandler(threading.Thread):
             return False
         return True
 
-    def _is_storage_full(self, file_size):
+    def _is_storage_full(self, net_size):
         """
         Evaluates if the storage is currently full.
         """
+        if net_size <= 0:
+            return False
         current_storage = self.access_storage()
-        if current_storage + file_size > MAX_STORAGE_SIZE:
-            return True
-        return False
+        return current_storage + net_size > MAX_STORAGE_SIZE
 
     def _end_conn(self, status_code):
         """

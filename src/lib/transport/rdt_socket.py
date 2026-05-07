@@ -1,6 +1,6 @@
 import socket
 
-from lib.common import MAX_RETRIES, PROTOCOL_GO_BACK_N, PROTOCOL_STOP_AND_WAIT, BUFFER_SIZE
+from lib.common import MAX_HSK_RETRIES, PROTOCOL_GO_BACK_N, PROTOCOL_STOP_AND_WAIT, BUFFER_SIZE
 from lib.transport.segments.segment import Segment
 from lib.transport.segments.syn_segment import SynSegment
 from lib.transport.go_back_n import GoBackN
@@ -37,7 +37,7 @@ class RdtSocket:
         """
         retry_attempts = 0
         syn_pkt = SynSegment(self.protocol_id)
-        while retry_attempts < MAX_RETRIES:
+        while retry_attempts < MAX_HSK_RETRIES:
             try:
                 self.log.info("Sending SYN segment to server")
                 self.skt.sendto(syn_pkt.to_bytes(), address)
@@ -51,7 +51,7 @@ class RdtSocket:
             except socket.timeout:
                 retry_attempts += 1
                 self.log.warning(
-                    f"SYN-ACK segment from server not received. Attempt {retry_attempts}/{MAX_RETRIES}")
+                    f"SYN-ACK segment from server not received. Attempt {retry_attempts}/{MAX_HSK_RETRIES}")
             except Exception as error:
                 self.log.error(f"Unexpected error: {error}")
 

@@ -7,7 +7,7 @@ from lib.transport.segments.ack_segment import AckSegment
 from lib.transport.segments.data_segment import DataSegment
 from lib.transport.segments.segment import Segment
 from lib.transport.rdt import ReliableProtocol
-from lib.common import MAX_SEQ, WINDOW_SIZE, MAX_PACKET_SIZE
+from lib.common import MAX_SEQ, WINDOW_SIZE, MAX_PACKET_SIZE, MAX_GBN_RETRIES
 from lib.transport.segments.finished_segment import FinishedSegment
 from socket import error as sock_err
 
@@ -68,7 +68,6 @@ class GoBackN(ReliableProtocol):
         self.closed = True
         self.send_event.set()
 
-        # Esperar a que el sender vacíe el buffer
         while True:
             with self.lock:
                 buffer_flushed = self.base >= len(self.send_buffer)
@@ -80,19 +79,17 @@ class GoBackN(ReliableProtocol):
             self.fin_seq = len(self.send_buffer) % MAX_SEQ
         fin_pkt = FinishedSegment(self.fin_seq)
 
-        MAX_RETRIES = 10
         retries = 0
 
-        while retries < MAX_RETRIES:
+        while retries < MAX_GBN_RETRIES:
             try:
                 self.socket.sendto(fin_pkt.to_bytes(), self.address)
-                self.log.debug(f"FINISHED segment sent with seq={self.fin_seq} (attempt {retries + 1}/{MAX_RETRIES})")
+                self.log.debug(f"FINISHED segment sent with seq={self.fin_seq} (attempt {retries + 1}/{MAX_GBN_RETRIES})")
             except sock_err:
-                self.log.debug("Socket error sending FIN, shutting down")
+                self.log.debug("Socket error sending FINISHED segment, shutting down")
                 self.done = True
                 return
 
-            # Espera el ACK durante timeout_interval
             deadline = time.time() + self.timeout_interval
             while time.time() < deadline:
                 if self.done:
@@ -101,7 +98,7 @@ class GoBackN(ReliableProtocol):
                 time.sleep(0.01)
 
             retries += 1
-            self.log.warning(f"FIN timeout, retrying ({retries}/{MAX_RETRIES})")
+            self.log.warning(f"FIN timeout, retrying ({retries}/{MAX_GBN_RETRIES})")
 
         self.log.warning("Max FIN retries reached, assuming peer is gone")
         self.done = True
@@ -197,9 +194,6 @@ class GoBackN(ReliableProtocol):
                     self.retransmitted.discard(idx)
 
                 self.log.debug(f"ACK received: {ack_val}. New base: {self.base}")
-
-                # Si ya mandamos todo y está cerrado, el ACK del último dato
-                # habilita al close() a mandar el FIN
                 self.send_event.set()
 
     def __handle_incoming_finished(self, seq, addr):
@@ -207,14 +201,12 @@ class GoBackN(ReliableProtocol):
         with self.lock:
             self.done = True
             ack_pkt = AckSegment(seq)
-
-        MAX_RETRIES = 10
         retries = 0
 
-        while retries < MAX_RETRIES:
+        while retries < MAX_GBN_RETRIES:
             try:
                 self.socket.sendto(ack_pkt.to_bytes(), addr)
-                self.log.debug(f"FIN ACK sent (ack={seq}) (attempt {retries + 1}/{MAX_RETRIES})")
+                self.log.debug(f"FIN ACK sent (ack={seq}) (attempt {retries + 1}/{MAX_GBN_RETRIES})")
             except sock_err:
                 self.log.debug("Socket error sending FIN ACK, shutting down")
                 return

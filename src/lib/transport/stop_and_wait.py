@@ -106,7 +106,6 @@ class StopAndWait(ReliableProtocol):
             self.log.debug("FINISHED segment sent")
 
             try:
-                # El ACK del FIN también llega por _ack_queue
                 seg = self._ack_queue.get(timeout=self.timeout_interval)
                 if seg.is_ack_segment() and seg.get_ack_number() == 0:
                     self.log.debug("FIN ACK received. Closing socket")
@@ -129,7 +128,7 @@ class StopAndWait(ReliableProtocol):
             except socket_module.timeout:
                 continue
             except sock_err:
-                return  # socket cerrado
+                return
 
             seg = Segment.from_bytes(raw)
 
