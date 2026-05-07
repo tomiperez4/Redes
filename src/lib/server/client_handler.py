@@ -4,7 +4,8 @@ import struct
 
 from lib.application.file_manager import FileManager
 from lib.constants.client_constants import CLIENT_TYPE_UPLOAD, CLIENT_TYPE_DOWNLOAD
-from lib.constants.server_constants import MAX_STORAGE_SIZE, MAX_FILE_SIZE, RES_FORMAT, CODE_READY, ERR_NO_SPACE, ERR_GENERIC
+from lib.constants.server_constants import MAX_STORAGE_SIZE, MAX_FILE_SIZE, RES_FORMAT, CODE_READY, ERR_NO_SPACE, \
+    ERR_GENERIC, ERR_FILE_NOT_FOUND, ERR_SIZE_LIMIT_EXCEEDED
 
 
 class ClientHandler(threading.Thread):
