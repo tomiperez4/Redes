@@ -2,11 +2,10 @@ import socket
 import threading
 
 from lib.transport.segments.segment import Segment
-from lib.constants.socket_constants import BUFFER_SIZE
+from lib.common import BUFFER_SIZE, PROTOCOL_GO_BACK_N, PROTOCOL_STOP_AND_WAIT
+from lib.server.constants import MAX_CLIENTS
 from lib.transport.segments.synack import SynackSegment
 from lib.transport.segments.finished_segment import FinishedSegment
-from lib.constants.server_constants import MAX_CLIENTS
-from lib.constants.protocol_constants import PROTOCOL_GO_BACK_N, PROTOCOL_STOP_AND_WAIT
 from lib.transport.stop_and_wait import StopAndWait
 from lib.transport.go_back_n import GoBackN
 

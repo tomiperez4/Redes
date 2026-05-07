@@ -1,9 +1,8 @@
 import socket
 import struct
 
-from lib.constants.socket_constants import TIMEOUT
-from lib.constants.log_file_constants import CLIENTS_LOG_FILE
-from lib.constants.server_constants import ERR_NO_SPACE, ERR_FILE_NOT_FOUND, ERR_GENERIC, CODE_READY
+from lib.common import TIMEOUT, CLIENTS_LOG_FILE
+from lib.server.constants import ERR_NO_SPACE, ERR_FILE_NOT_FOUND, ERR_GENERIC, CODE_READY
 from lib.logger import Logger
 
 

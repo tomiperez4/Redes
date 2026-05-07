@@ -1,8 +1,5 @@
 from abc import abstractmethod, ABC
-
-from lib.constants.protocol_constants import ALPHA, BETA
-from lib.constants.socket_constants import TIMEOUT
-
+from lib.common import ALPHA, BETA, TIMEOUT
 
 class ReliableProtocol(ABC):
     """

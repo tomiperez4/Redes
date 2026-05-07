@@ -1,7 +1,6 @@
 import socket
 
-from lib.constants.protocol_constants import MAX_RETRIES, PROTOCOL_GO_BACK_N, PROTOCOL_STOP_AND_WAIT
-from lib.constants.socket_constants import BUFFER_SIZE
+from lib.common import MAX_RETRIES, PROTOCOL_GO_BACK_N, PROTOCOL_STOP_AND_WAIT, BUFFER_SIZE
 from lib.transport.segments.segment import Segment
 from lib.transport.segments.syn_segment import SynSegment
 from lib.transport.go_back_n import GoBackN

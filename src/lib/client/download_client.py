@@ -2,9 +2,9 @@ import shutil
 import struct
 import time
 
-from lib.application.file_manager import FileManager
+from lib.transport.file_manager import FileManager
 from lib.transport.rdt_socket import RdtSocket
-from lib.constants.client_constants import CLIENT_TYPE_DOWNLOAD
+from lib.client.constants import CLIENT_TYPE_DOWNLOAD
 from lib.client.client import Client
 
 

@@ -7,8 +7,7 @@ from lib.transport.segments.ack_segment import AckSegment
 from lib.transport.segments.data_segment import DataSegment
 from lib.transport.segments.segment import Segment
 from lib.transport.rdt import ReliableProtocol
-from lib.constants.protocol_constants import MAX_SEQ, WINDOW_SIZE
-from lib.constants.socket_constants import MAX_PACKET_SIZE
+from lib.common import MAX_SEQ, WINDOW_SIZE, MAX_PACKET_SIZE
 from lib.transport.segments.finished_segment import FinishedSegment
 
 

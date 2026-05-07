@@ -1,7 +1,7 @@
 import socket as socket_module
 import time
 
-from lib.constants.socket_constants import MAX_PACKET_SIZE
+from lib.common import MAX_PACKET_SIZE
 from lib.transport.segments.ack_segment import AckSegment
 from lib.transport.segments.data_segment import DataSegment
 from lib.transport.segments.finished_segment import FinishedSegment
@@ -119,7 +119,7 @@ class StopAndWait(ReliableProtocol):
 
         while True:
             self.socket.sendto(fin.to_bytes(), self.address)
-            self.log.debug("FIN sent")
+            self.log.debug("FINISHED segment sent")
 
             try:
                 raw, _ = self.socket.recvfrom(MAX_PACKET_SIZE)
@@ -131,7 +131,7 @@ class StopAndWait(ReliableProtocol):
                     return
 
             except socket_module.timeout:
-                self.log.debug("Timeout. Resending FIN segment")
+                self.log.debug("Timeout. Resending FINISHED segment")
                 continue
 
     # Helpers
@@ -140,12 +140,14 @@ class StopAndWait(ReliableProtocol):
         """
         Clears any pending residue in the socket buffer.
         """
+        self.socket.setblocking(False)
         try:
             while True:
                 self.socket.recvfrom(MAX_PACKET_SIZE)
         except:
             pass
-        self.socket.settimeout(self.timeout_interval)
+        finally:
+            self.socket.settimeout(self.timeout_interval)
 
     def __wait_for_ack(self, expected_ack):
         """
@@ -156,7 +158,7 @@ class StopAndWait(ReliableProtocol):
 
         while True:
             remaining = deadline - time.time()
-            if remaining <= 0:
+            if remaining < 0:
                 return None
 
             self.socket.settimeout(remaining)
@@ -191,7 +193,7 @@ class StopAndWait(ReliableProtocol):
 
     def __handle_fin_segment(self):
         """
-        Handles FIN reception and sends final ACKs before closing.
+        Handles FINISHED segment reception and sends final ACKs before closing.
         """
         self.log.info("FIN segment received. Peer is closing")
         end_time = time.time() + 2

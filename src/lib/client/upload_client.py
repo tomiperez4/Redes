@@ -1,8 +1,8 @@
 import struct
 import time
 
-from lib.application.file_manager import FileManager
-from lib.constants.client_constants import CLIENT_TYPE_UPLOAD
+from lib.transport.file_manager import FileManager
+from lib.client.constants import CLIENT_TYPE_UPLOAD
 from lib.client.client import Client
 import os
 
