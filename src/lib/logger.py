@@ -41,6 +41,7 @@ class Logger:
                         console_handler.setLevel(logging.DEBUG)
                     else:
                         console_handler.setLevel(logging.INFO)
+                        console_handler.addFilter(lambda record: record.levelno < logging.WARNING)
 
                     logger.addHandler(console_handler)
 
