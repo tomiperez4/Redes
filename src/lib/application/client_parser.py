@@ -14,8 +14,7 @@ class ClientParser(BaseParser):
                 "-s",
                 "--src",
                 default=constants.DEFAULT_UPLOAD_FILEPATH,
-                help=f"Source file path. Default: {
-                    constants.DEFAULT_UPLOAD_FILEPATH}",
+                help=f"Source file path. Default: {constants.DEFAULT_UPLOAD_FILEPATH}",
             )
         else:
             self.final_parser.add_argument(
@@ -36,8 +35,7 @@ class ClientParser(BaseParser):
             "--protocol",
             choices=["sw", "gbn"],
             default=constants.DEFAULT_PROTOCOL,
-            help=f"Protocol. Default: {
-                constants.DEFAULT_PROTOCOL}",
+            help=f"Protocol. Default: {constants.DEFAULT_PROTOCOL}",
         )
 
     def parse(self):

@@ -31,9 +31,7 @@ def main():
         log.info(f"Starting server on {args.host}:{args.port}")
         server.start()
     except Exception as error:
-        log.error(f"Failed to start server on {
-                args.host}:{
-                args.port}: {error}")
+        log.error(f"Failed to start server on {args.host}:{args.port}: {error}")
 
 
 if __name__ == "__main__":

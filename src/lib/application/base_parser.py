@@ -9,16 +9,14 @@ class BaseParser:
             "-H",
             "--host",
             default=constants.DEFAULT_HOST,
-            help=f"Server IP Address. Default: {
-                constants.DEFAULT_HOST}",
+            help=f"Server IP Address. Default: {constants.DEFAULT_HOST}",
         )
         self.parser.add_argument(
             "-p",
             "--port",
             type=int,
             default=constants.DEFAULT_PORT,
-            help=f"Server port. Default: {
-                constants.DEFAULT_PORT}",
+            help=f"Server port. Default: {constants.DEFAULT_PORT}",
         )
         exclusive_params = self.parser.add_mutually_exclusive_group()
         exclusive_params.add_argument(
