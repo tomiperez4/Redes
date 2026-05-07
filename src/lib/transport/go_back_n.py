@@ -9,19 +9,10 @@ from lib.transport.segments.segment import Segment
 from lib.transport.rdt import ReliableProtocol
 from lib.common import MAX_SEQ, WINDOW_SIZE, MAX_PACKET_SIZE
 from lib.transport.segments.finished_segment import FinishedSegment
+from socket import error as sock_err
 
 
 class GoBackN(ReliableProtocol):
-    """
-    Implementation of the Go-Back-N reliable transport protocol.
-
-    Features:
-    - Sliding window for sending multiple packets
-    - Cumulative ACKs
-    - Retransmission on timeout
-    - Concurrent sender and receiver threads
-    - Graceful termination with FIN
-    """
     def __init__(self, socket, address, log):
         super().__init__(socket, log)
 
@@ -32,12 +23,14 @@ class GoBackN(ReliableProtocol):
         # Sender stuff
         self.base = 0
         self.next_idx = 0
-        self.fin_seq = None
         self.sent_times = {}
         self.address = address
         self.retransmitted = set()
 
+        self.fin_seq = -1
+
         self.socket.settimeout(self.timeout_interval)
+
         # Receiver stuff
         self.expected_seq = 0
 
@@ -47,20 +40,13 @@ class GoBackN(ReliableProtocol):
         self.send_event = threading.Event()
         self.repeat_event = threading.Event()
 
-        # Threads
-        self.sender_thread = threading.Thread(
-            target=self.__sender_loop, daemon=True)
-        self.receiver_thread = threading.Thread(
-            target=self.__receiver_loop, daemon=True)
+        self.sender_thread = threading.Thread(target=self.__sender_loop, daemon=True)
+        self.receiver_thread = threading.Thread(target=self.__receiver_loop, daemon=True)
 
         self.sender_thread.start()
         self.receiver_thread.start()
 
     def send(self, data):
-        """
-        Adds data to the send buffer.
-        Data is not sent immediately, but queued and handled asynchronously by the sender thread.
-        """
         with self.lock:
             seq = len(self.send_buffer) % MAX_SEQ
             pkt = DataSegment(seq, data)
@@ -68,10 +54,6 @@ class GoBackN(ReliableProtocol):
         self.send_event.set()
 
     def recv(self):
-        """
-        Returns the next received data chunk.
-        Blocks until data is available or connection ends.
-        """
         while not self.receive_queue:
             if self.done:
                 return None
@@ -83,36 +65,52 @@ class GoBackN(ReliableProtocol):
         return self.done
 
     def close(self):
-        """
-        Sends a FINISHED segment and waits until the connection is closed.
-        """
-        with self.lock:
-            seq = len(self.send_buffer) % MAX_SEQ
-            pkt = FinishedSegment(seq)
-            self.send_buffer.append(pkt)
-            self.closed = True
-
+        self.closed = True
         self.send_event.set()
 
-        # Block until the receiver confirms the FINISHED packet and sets self.done
-        while not self.done:
-            time.sleep(0.1)
-        self.log.info("Connection closed successfully.")
+        # Esperar a que el sender vacíe el buffer
+        while True:
+            with self.lock:
+                buffer_flushed = self.base >= len(self.send_buffer)
+            if buffer_flushed:
+                break
+            time.sleep(0.05)
+
+        with self.lock:
+            self.fin_seq = len(self.send_buffer) % MAX_SEQ
+        fin_pkt = FinishedSegment(self.fin_seq)
+
+        MAX_RETRIES = 10
+        retries = 0
+
+        while retries < MAX_RETRIES:
+            try:
+                self.socket.sendto(fin_pkt.to_bytes(), self.address)
+                self.log.debug(f"FINISHED segment sent with seq={self.fin_seq} (attempt {retries + 1}/{MAX_RETRIES})")
+            except sock_err:
+                self.log.debug("Socket error sending FIN, shutting down")
+                self.done = True
+                return
+
+            # Espera el ACK durante timeout_interval
+            deadline = time.time() + self.timeout_interval
+            while time.time() < deadline:
+                if self.done:
+                    self.log.info("Connection closed successfully.")
+                    return
+                time.sleep(0.01)
+
+            retries += 1
+            self.log.warning(f"FIN timeout, retrying ({retries}/{MAX_RETRIES})")
+
+        self.log.warning("Max FIN retries reached, assuming peer is gone")
+        self.done = True
 
     def __sender_loop(self):
-        """
-        Continuously sends packets within the sliding window.
-
-        Handles:
-        - window control
-        - retransmissions
-        - FINISHED transfer completion
-        """
         while not self.done:
             self.send_event.wait()
             self.send_event.clear()
 
-            # Check if retransmission is needed
             if self.repeat_event.is_set():
                 self.repeat_event.clear()
                 with self.lock:
@@ -120,14 +118,9 @@ class GoBackN(ReliableProtocol):
 
             while True:
                 with self.lock:
-                    # If window is full, can't send
                     if self.next_idx >= self.base + WINDOW_SIZE:
                         break
-
-                    # Check if there is no more data to send
                     if self.next_idx >= len(self.send_buffer):
-                        if self.closed and self.base == len(self.send_buffer):
-                            self.done = True
                         break
 
                     pkt = self.send_buffer[self.next_idx]
@@ -143,15 +136,6 @@ class GoBackN(ReliableProtocol):
                 self.log.debug(f"Sent idx={current_idx} seq={seq}")
 
     def __receiver_loop(self):
-        """
-        Continuously receives packets and processes them.
-
-        Handles:
-        - incoming data
-        - ACKs
-        - FIN segments
-        - timeout detection
-        """
         while not self.done:
             try:
                 raw, addr = self.socket.recvfrom(MAX_PACKET_SIZE)
@@ -159,10 +143,12 @@ class GoBackN(ReliableProtocol):
 
                 if seg.is_data_segment():
                     self.__handle_incoming_data(seg, addr)
-
                 elif seg.is_ack_segment():
-                    self.__handle_incoming_ack(seg.ack)
-
+                    if self.closed and self.fin_seq != -1 and seg.seq == self.fin_seq:
+                        self.log.debug("FIN ACK received, closing")
+                        self.done = True
+                        return
+                    self.__handle_incoming_ack(seg.seq)
                 elif seg.is_finished_segment():
                     self.__handle_incoming_finished(seg.seq, addr)
 
@@ -172,41 +158,25 @@ class GoBackN(ReliableProtocol):
                         continue
                 self.__handle_timeout()
 
-    def __handle_incoming_data(self, seg, addr):
-        """
-        Handles an incoming DATA segment.
+            except sock_err:
+                self.done = True
+                self.socket.close()
+                return
 
-        - Accepts the packet only if it is in order
-        - Stores payload in receive queue
-        - Updates expected sequence number
-        - Always sends a cumulative ACK (last correctly received)
-        """
+    def __handle_incoming_data(self, seg, addr):
         with self.lock:
             if seg.seq == self.expected_seq:
                 self.log.debug(f"Data received in order: seq={seg.seq}")
                 self.receive_queue.append(seg.get_payload())
                 self.expected_seq = (self.expected_seq + 1) % MAX_SEQ
             else:
-                self.log.warning(
-                    f"Out of order! Got {
-                        seg.seq}, expected {
-                        self.expected_seq}")
+                self.log.warning(f"Out of order! Got {seg.seq}, expected {self.expected_seq}")
 
             last_ack = (self.expected_seq - 1) % MAX_SEQ
             ack_pkt = AckSegment(last_ack)
             self.socket.sendto(ack_pkt.to_bytes(), addr)
 
     def __handle_incoming_ack(self, ack_val):
-        """
-        Handles an incoming ACK.
-
-        - Finds the corresponding packet in the send window
-        - Updates base (slides the window)
-        - Updates RTT estimation if possible
-        - Triggers sender to continue sending
-
-        :param ack_val: acknowledged sequence number
-        """
         with self.lock:
             found_idx = -1
             for idx in range(self.base, self.next_idx):
@@ -218,50 +188,45 @@ class GoBackN(ReliableProtocol):
                 if found_idx in self.sent_times and found_idx not in self.retransmitted:
                     sample = time.time() - self.sent_times[found_idx]
                     self._update_rto(sample)
+
                 old_base = self.base
                 self.base = found_idx + 1
 
                 for idx in range(old_base, self.base):
                     self.sent_times.pop(idx, None)
                     self.retransmitted.discard(idx)
-                self.log.debug(
-                    f"ACK received: {ack_val}. New base: {
-                        self.base}")
+
+                self.log.debug(f"ACK received: {ack_val}. New base: {self.base}")
+
+                # Si ya mandamos todo y está cerrado, el ACK del último dato
+                # habilita al close() a mandar el FIN
                 self.send_event.set()
 
     def __handle_incoming_finished(self, seq, addr):
-        """
-        Handles an incoming FIN segment.
-
-        - Verifies correct sequence
-        - Marks connection as done
-        - Sends final ACK
-        """
-        self.log.debug("FINISHED segment received")
+        self.log.debug(f"FINISHED segment received with seq={seq}")
         with self.lock:
-            if seq == self.expected_seq:
-                self.log.debug(f"FINISHED segment received OK")
-                self.expected_seq = (self.expected_seq + 1) % MAX_SEQ
-                self.done = True
-            else:
-                self.log.warning(
-                    f"FIN out of order!")
+            self.done = True
+            ack_pkt = AckSegment(seq)
 
-            last_ack = (self.expected_seq - 1) % MAX_SEQ
-            ack_pkt = AckSegment(last_ack)
-            self.socket.sendto(ack_pkt.to_bytes(), addr)
+        MAX_RETRIES = 10
+        retries = 0
 
-    # Helpers
+        while retries < MAX_RETRIES:
+            try:
+                self.socket.sendto(ack_pkt.to_bytes(), addr)
+                self.log.debug(f"FIN ACK sent (ack={seq}) (attempt {retries + 1}/{MAX_RETRIES})")
+            except sock_err:
+                self.log.debug("Socket error sending FIN ACK, shutting down")
+                return
+
+            time.sleep(self.timeout_interval)
+            retries += 1
+
+        self.log.warning("Max FIN ACK retries reached, assuming peer received it")
+
     def __handle_timeout(self):
-        """
-        Handles retransmission timeout.
-
-        - Triggers retransmission of the current window
-        - Applies exponential backoff to timeout
-        - Clears RTT samples for recalculation
-        """
         self.log.warning("Timeout! Retransmitting window...")
-        self.timeout_interval = self.timeout_interval * 2
+        self.timeout_interval = min(self.timeout_interval * 2, 0.8)
         self.socket.settimeout(self.timeout_interval)
         with self.lock:
             for idx in range(self.base, self.next_idx):

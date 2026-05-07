@@ -53,11 +53,12 @@ class UploadClient(Client):
         Executes the upload process.
         If the server accepts the request, sends the file.
         """
-        start_time = 0
-        if self.connect_to_server() is not None:
-            file_manager = FileManager(self.protocol, self.log)
-            start_time = time.time()
-            file_manager.send_file(self.src_path)
+        if self.connect_to_server() is None:
+            return
+
+        file_manager = FileManager(self.protocol, self.log)
+        start_time = time.time()
+        file_manager.send_file(self.src_path)
         end_time = time.time()
         duration = end_time - start_time
         self.log.info(f"Upload completed in {duration:.2f} seconds")

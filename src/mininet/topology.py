@@ -4,7 +4,6 @@ from mininet.net import Mininet
 from mininet.cli import CLI
 from mininet.node import OVSController
 
-
 class LinearTopology(Topo):
     def build(self):
         client = self.addHost('client')
@@ -13,7 +12,7 @@ class LinearTopology(Topo):
         s2 = self.addSwitch('s2')
 
         self.addLink(client, s1)
-        self.addLink(s1, s2)
+        self.addLink(s1, s2, loss=10)
         self.addLink(server, s2)
 
 
