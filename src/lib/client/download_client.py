@@ -1,5 +1,6 @@
 import shutil
 import struct
+import time
 
 from lib.application.file_manager import FileManager
 from lib.transport.rdt_socket import RdtSocket
@@ -43,10 +44,15 @@ class DownloadClient(Client):
         Executes the download process.
         If the server accepts the request, it receives the file and saves it to the destination path.
         """
+        start_time = 0
         file_size = self.connect_to_server()
         if file_size is not None:
             file_manager = FileManager(self.protocol, self.log)
+            start_time = time.time()
             file_manager.receive_file(self.dst_path, file_size)
+        end_time = time.time()
+        duration = end_time - start_time
+        self.log.info(f"Download completed in {duration:.2f} seconds")
 
 def has_enough_space(file_size):
     """
