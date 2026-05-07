@@ -2,8 +2,8 @@ import os
 from lib.application.server_parser import ServerParser
 from lib.server.server import Server
 from lib.logger import Logger
-from lib.constants.log_file_constants import *
-from lib.constants.server_constants import WORKERS
+from lib.common import *
+from lib.server.constants import WORKERS
 
 
 def main():

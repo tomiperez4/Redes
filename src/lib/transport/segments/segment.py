@@ -1,6 +1,6 @@
 import struct
 from abc import ABC, abstractmethod
-from lib.constants.segment_constants import SYN_FLAG, ACK_FLAG, FIN_FLAG, SYN_ACK_FLAG
+from lib.transport.segments.constants import SYN_FLAG, ACK_FLAG, FIN_FLAG, SYN_ACK_FLAG
 
 
 class Segment(ABC):

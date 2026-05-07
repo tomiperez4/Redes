@@ -1,5 +1,5 @@
 from lib.application.client_parser import ClientParser
-from lib.constants.protocol_constants import PROTOCOL_STOP_AND_WAIT, PROTOCOL_GO_BACK_N
+from lib.common import PROTOCOL_STOP_AND_WAIT, PROTOCOL_GO_BACK_N
 from lib.client.download_client import DownloadClient
 
 if __name__ == "__main__":

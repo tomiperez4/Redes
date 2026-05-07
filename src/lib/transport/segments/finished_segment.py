@@ -1,5 +1,5 @@
 from lib.transport.segments.segment import Segment
-from lib.constants.segment_constants import FIN_FLAG
+from lib.transport.segments.constants import FIN_FLAG
 
 
 class FinishedSegment(Segment):

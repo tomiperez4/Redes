@@ -1,6 +1,6 @@
 import struct
 from lib.transport.segments.segment import Segment
-from lib.constants.segment_constants import SYN_ACK_FLAG
+from lib.transport.segments.constants import SYN_ACK_FLAG
 
 class SynackSegment(Segment):
     """

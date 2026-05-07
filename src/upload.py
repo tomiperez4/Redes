@@ -1,5 +1,5 @@
 from lib.application.client_parser import ClientParser
-from lib.constants.protocol_constants import PROTOCOL_STOP_AND_WAIT, PROTOCOL_GO_BACK_N
+from lib.common import PROTOCOL_STOP_AND_WAIT, PROTOCOL_GO_BACK_N
 from lib.client.upload_client import UploadClient
 
 if __name__ == "__main__":
