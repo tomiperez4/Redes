@@ -1,0 +1,101 @@
+import socket
+import os
+import threading
+
+from concurrent.futures import ThreadPoolExecutor
+from lib.transport.rdt_listener import RdtListener
+from lib.server.client_handler import ClientHandler
+
+
+class Server:
+    """
+    Initializes the server with the given host, port and storage path.
+    """
+
+    def __init__(self, host, port, workers, storage_path, log):
+        self.address = (host, port)
+
+        self.storage_path = storage_path
+        self.current_storage = get_directory_total_size(self.storage_path)
+        self.update_storage_lock = threading.Lock()
+        self.access_storage_lock = threading.Lock()
+
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.clients = {}
+        self.executor = ThreadPoolExecutor(max_workers=workers)
+        self.log = log
+
+    def start(self):
+        """
+        Starts up the server by binding it to a socket using the given address.
+        """
+        try:
+            self.socket.bind(self.address)
+            self.log.debug(f"Server listening on {self.address}")
+        except Exception as error:
+            self.log.error(f"Failed to bind socket: {error}")
+            return
+
+        shutdown_event = threading.Event()
+
+        try:
+            listener = RdtListener(self.socket, self.log.clone("RDT-LISTENER"))
+            while True:
+                protocol, address = listener.handle_incoming()
+                if not protocol:
+                    continue
+                client_handler = ClientHandler(
+                    address,
+                    protocol,
+                    self.storage_path,
+                    shutdown_event,
+                    self.log.clone("CLIENT-HANDLER"),
+                    on_finish_callback=listener.remove_client,
+                    on_update_storage=self.update_storage,
+                    access_storage=self.access_storage,
+                )
+                client_handler.start()
+
+        except KeyboardInterrupt:
+            self.log.info("Closing server")
+            shutdown_event.set()
+            self.socket.close()
+
+        except Exception as error:
+            self.log.error(f"Failed to start Client Listener: {error}")
+
+    def update_storage(self, size_to_add):
+        """
+        Updates the storage size of the client given a file size.
+        """
+        with self.update_storage_lock:
+            self.current_storage += size_to_add
+            self.log.info(f"Storage updated: {self.current_storage}B")
+
+    def access_storage(self):
+        """
+        Returns the current available storage size.
+        """
+        with self.access_storage_lock:
+            return self.current_storage
+
+
+def get_directory_total_size(directory_path):
+    """
+    Returns the total size of the given directory.
+    """
+    total_bytes = 0
+
+    if not os.path.exists(directory_path):
+        return 0
+
+    try:
+        with os.scandir(directory_path) as entries:
+            for entry in entries:
+                if entry.is_file():
+                    total_bytes += entry.stat().st_size
+    except Exception as e:
+        print(f"Failed to get initial storage: {e}")
+        return 0
+
+    return total_bytes
