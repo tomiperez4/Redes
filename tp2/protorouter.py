@@ -124,12 +124,44 @@ class ProtoRouter(object):
         port = private_port
         if port < MIN_PORT or port > MAX_PORT:
             port = MIN_PORT
+        attempts = 0
         while (nw_proto, port) in self.used_ports:
             port += 1
             if port > MAX_PORT:
                 port = MIN_PORT
+            attempts += 1
+            if attempts > (MAX_PORT - MIN_PORT + 1):
+                log.error("No hay puertos disponibles")
+                return None
         self.used_ports.add((nw_proto, port))
         return port
+
+    def _handle_FlowRemoved(self, event):
+        match = event.ofp.match
+        if match.dl_type != 0x800 or match.nw_proto not in (6, 17):
+            return
+
+        nw_proto = match.nw_proto
+        public_port = None
+
+        if match.nw_src is not None and match.nw_src.inNetwork(PRIVATE_SUBNET, PRIVATE_MASK):
+            src_ip = match.nw_src
+            private_port = match.tp_src
+            key = (nw_proto, src_ip, private_port)
+            public_port = self.nat_table.get(key)
+        elif match.nw_dst == PUBLIC_IP:
+            public_port = match.tp_dst
+
+        if public_port is not None:
+            rev_key = (nw_proto, public_port)
+            if rev_key in self.nat_reverse:
+                private_ip, private_port, _, _ = self.nat_reverse[rev_key]
+                key = (nw_proto, private_ip, private_port)
+                self.nat_table.pop(key, None)
+                self.nat_reverse.pop(rev_key, None)
+                self.used_ports.discard(rev_key)
+
+                log_color(YELLOW, f"LIMPIEZA: Puerto público {public_port} liberado tras inactividad.")
 
     def handle_ip(self, event):
         packet = event.parsed
@@ -168,12 +200,16 @@ class ProtoRouter(object):
                     public_port = self.nat_table[key]
                 else:
                     public_port = self._get_public_port(nw_proto, private_port)
+                    if public_port is None:
+                        log_color(RED, "No hay puertos disponibles, descartando el paquete")
+                        return
                     self.nat_table[key] = public_port
                     self.nat_reverse[(nw_proto, public_port)] = (ip_pkt.srcip, private_port, in_port, packet.src)
 
                 # Flujo saliente: traduce IP origen y puerto origen
                 fm = of.ofp_flow_mod()
                 fm.idle_timeout = NAT_TIMEOUT
+                fm.flags = of.OFPFF_SEND_FLOW_REM
                 fm.match.dl_type = 0x800
                 fm.match.nw_src = ip_pkt.srcip
                 fm.match.nw_dst = ip_pkt.dstip
@@ -193,6 +229,7 @@ class ProtoRouter(object):
                 # Flujo entrante: respuestas hacia el host privado
                 fm_back = of.ofp_flow_mod()
                 fm_back.idle_timeout = NAT_TIMEOUT
+                fm_back.flags = of.OFPFF_SEND_FLOW_REM
                 fm_back.match.dl_type = 0x800
                 fm_back.match.nw_dst = PUBLIC_IP
                 fm_back.match.nw_proto = nw_proto
@@ -262,6 +299,7 @@ class ProtoRouter(object):
                     # Instalar flujo entrante si no existe
                     fm_back = of.ofp_flow_mod()
                     fm_back.idle_timeout = NAT_TIMEOUT
+                    fm_back.flags = of.OFPFF_SEND_FLOW_REM
                     fm_back.match.dl_type = 0x800
                     fm_back.match.nw_dst = PUBLIC_IP
                     fm_back.match.nw_proto = nw_proto
