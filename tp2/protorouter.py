@@ -1,34 +1,12 @@
 # Import some POX stuff
 from pox.core import core                       # Main POX object
 import pox.openflow.libopenflow_01 as of        # OpenFlow 1.0 library
-from pox.lib.addresses import EthAddr, IPAddr   # Address types
 from pox.lib.packet.ethernet import ethernet
 from pox.lib.packet.ethernet import ETHER_BROADCAST
 from pox.lib.packet.arp import arp
 from pox.lib.packet.ipv4 import ipv4
-
-log = core.getLogger()
-RED = "\033[31m"
-GREEN = "\033[32m"
-YELLOW = "\033[33m"
-CYAN = "\033[36m"
-RESET = "\033[0m"
-
-
-def log_color(color, msg):
-    log.info(f"{color}{msg}{RESET}")
-
-
-PRIVATE_SUBNET = IPAddr("192.168.1.0")      # Red interna
-PRIVATE_MASK = 24                           # Máscara de la red interna
-PRIVATE_IP = IPAddr("192.168.1.254")        # IP del router en la red privada
-PUBLIC_IP = IPAddr("200.0.0.254")           # IP del router en la red pública
-PUBLIC_MAC = EthAddr("00:00:00:aa:aa:aa")   # MAC del router hacia la red pública
-PRIVATE_MAC = EthAddr("00:00:00:bb:bb:bb")  # MAC del router hacia la red privada
-PUBLIC_PORT = 1                             # Puerto del switch conectado a la red pública
-MIN_PORT = 49152
-MAX_PORT = 65535
-NAT_TIMEOUT = 10
+from logger import log_color, log, RED, GREEN, YELLOW, CYAN
+from config import *
 
 class ProtoRouter(object):
     def __init__(self, connection):
@@ -196,9 +174,7 @@ class ProtoRouter(object):
                 log_color(GREEN, f"NAT SALIENTE: {ip_pkt.srcip}:{private_port} → {PUBLIC_IP}:{public_port}")
 
                 # Instalar Flujo Saliente
-                fm = of.ofp_flow_mod()
-                fm.idle_timeout = NAT_TIMEOUT
-                fm.flags = of.OFPFF_SEND_FLOW_REM
+                fm = self._install_flow()
                 # Filtro (Saliente)
                 fm.match.dl_type = 0x800
                 fm.match.nw_src = ip_pkt.srcip
@@ -216,9 +192,7 @@ class ProtoRouter(object):
                 self.connection.send(fm)
 
                 # Instalar Flujo Entrante (para respuesta)
-                fm_back = of.ofp_flow_mod()
-                fm_back.idle_timeout = NAT_TIMEOUT
-                fm_back.flags = of.OFPFF_SEND_FLOW_REM
+                fm_back = self._install_flow()
                 # Filtro (Entrante)
                 fm_back.match.dl_type = 0x800
                 fm_back.match.nw_src = ip_pkt.srcip
@@ -248,6 +222,12 @@ class ProtoRouter(object):
         else:
             log_color(RED, f"NO MATCH: {ip_pkt.srcip} no pertenece a {PRIVATE_SUBNET}/{PRIVATE_MASK}")
 
+    def _install_flow(self):
+        fm = of.ofp_flow_mod()
+        fm.idle_timeout = NAT_TIMEOUT
+        fm.flags = of.OFPFF_SEND_FLOW_REM
+
+        return fm
 
 def launch():
 

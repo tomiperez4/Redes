@@ -1,0 +1,12 @@
+from pox.lib.addresses import EthAddr, IPAddr
+
+PRIVATE_SUBNET = IPAddr("192.168.1.0")
+PRIVATE_MASK = 24
+PRIVATE_IP = IPAddr("192.168.1.254")
+PUBLIC_IP = IPAddr("200.0.0.254")
+PUBLIC_MAC = EthAddr("00:00:00:aa:aa:aa")
+PRIVATE_MAC = EthAddr("00:00:00:bb:bb:bb")
+PUBLIC_PORT = 1
+MIN_PORT = 49152
+MAX_PORT = 65535
+NAT_TIMEOUT = 10
