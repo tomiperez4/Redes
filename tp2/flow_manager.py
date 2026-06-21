@@ -1,5 +1,5 @@
 import pox.openflow.libopenflow_01 as of
-from config import NAT_TIMEOUT, PUBLIC_MAC, PUBLIC_IP, PRIVATE_MAC, PUBLIC_PORT
+from tp2.config import NAT_TIMEOUT, PUBLIC_MAC, PUBLIC_IP, PRIVATE_MAC, PUBLIC_PORT
 
 def install_flow():
     fm = of.ofp_flow_mod()

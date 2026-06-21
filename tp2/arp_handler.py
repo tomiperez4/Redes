@@ -1,10 +1,9 @@
-from pox.core import core
 import pox.openflow.libopenflow_01 as of
 from pox.lib.addresses import EthAddr
 from pox.lib.packet.ethernet import ethernet
 from pox.lib.packet.ethernet import ETHER_BROADCAST
 from pox.lib.packet.arp import arp
-from logger import *
+from tp2.logger import *
 
 class ArpHandler(object):
 

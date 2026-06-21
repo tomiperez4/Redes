@@ -1,13 +1,13 @@
-# Import some POX stuff
 from pox.core import core                       # Main POX object
 import pox.openflow.libopenflow_01 as of        # OpenFlow 1.0 library
 from pox.lib.packet.ethernet import ethernet
 from pox.lib.packet.ipv4 import ipv4
-from logger import log_color, log, RED, GREEN, YELLOW, CYAN
-from config import *
-from arp_handler import ArpHandler
-from nat_manager import NatManager
-import flow_manager
+from tp2.logger import log_color, log, RED, GREEN, YELLOW, CYAN
+from tp2.config import *
+from tp2.arp_handler import ArpHandler
+from tp2.nat_manager import NatManager
+from tp2 import flow_manager
+
 
 class ProtoRouter(object):
     def __init__(self, connection):
@@ -78,6 +78,8 @@ class ProtoRouter(object):
 
                 packet.src = PUBLIC_MAC
                 packet.dst = dst_mac
+                ip_pkt.srcip = PUBLIC_IP
+                transport_pkt.srcport = public_port
                 msg = of.ofp_packet_out()
                 msg.data = packet.pack()
                 msg.actions.append(of.ofp_action_output(port=PUBLIC_PORT))

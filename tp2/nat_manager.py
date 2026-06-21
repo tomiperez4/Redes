@@ -1,7 +1,6 @@
-from logger import log_color, log, YELLOW
-from config import MIN_PORT, MAX_PORT, PRIVATE_SUBNET, PRIVATE_MASK
+from tp2.logger import log_color, log, YELLOW
+from tp2.config import MIN_PORT, MAX_PORT, PRIVATE_SUBNET, PRIVATE_MASK
 from pox.lib.packet.ipv4 import ipv4
-
 
 class NatManager(object):
     def __init__(self):
