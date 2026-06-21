@@ -146,7 +146,7 @@ class ProtoRouter(object):
             key = (nw_proto, src_ip, private_port)
             if key in self.nat_table:
                 public_port = self.nat_table.pop(key)
-                self.used_ports.add((nw_proto, public_port))
+                self.used_ports.remove((nw_proto, public_port))
                 log_color(YELLOW, f"LIMPIEZA: Puerto público {public_port} liberado.")
 
     def handle_ip(self, event):
@@ -220,12 +220,12 @@ class ProtoRouter(object):
                 fm_back.idle_timeout = NAT_TIMEOUT
                 fm_back.flags = of.OFPFF_SEND_FLOW_REM
                 # Filtro (Entrante)
-                fm.match.dl_type = 0x800
-                fm.match.nw_src = ip_pkt.srcip
-                fm.match.nw_dst = ip_pkt.dstip
-                fm.match.nw_proto = nw_proto
-                fm.match.tp_src = private_port
-                fm.match.tp_dst = transport_pkt.dstport
+                fm_back.match.dl_type = 0x800
+                fm_back.match.nw_src = ip_pkt.srcip
+                fm_back.match.nw_dst = ip_pkt.dstip
+                fm_back.match.nw_proto = nw_proto
+                fm_back.match.tp_src = private_port
+                fm_back.match.tp_dst = transport_pkt.dstport
                 fm_back.match.in_port = PUBLIC_PORT
                 # Acción (Entrante)
                 fm_back.actions.append(of.ofp_action_dl_addr.set_src(PRIVATE_MAC))
