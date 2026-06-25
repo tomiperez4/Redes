@@ -46,7 +46,7 @@ class ProtoRouter(object):
             f"MAC: {packet.src} → {packet.dst} | In Port: {in_port}")
 
         dst_ip = ip_pkt.dstip
-        if dst_ip in (PRIVATE_IP, PRIVATE_MAC):
+        if dst_ip == PRIVATE_IP:
             log_color(YELLOW, f"PAQUETE IGNORADO")
 
         # Si no conocemos la MAC pausamos y preguntamos
