@@ -46,10 +46,12 @@ class ProtoRouter(object):
             f"MAC: {packet.src} → {packet.dst} | In Port: {in_port}")
 
         dst_ip = ip_pkt.dstip
+        if dst_ip in (PRIVATE_IP, PRIVATE_MAC):
+            log_color(YELLOW, f"PAQUETE IGNORADO")
 
         # Si no conocemos la MAC pausamos y preguntamos
         if dst_ip not in self.arp.arp_table:
-            log_color(YELLOW, f"MAC desconocida para {dst_ip}. Encolando paquete y mandando ARP Request")
+            log_color(YELLOW, f"MAC desconocida para {dst_ip}.")
             if dst_ip.inNetwork(PRIVATE_SUBNET, PRIVATE_MASK):
                 self.arp.resolve_or_queue(dst_ip, PRIVATE_IP, PRIVATE_MAC, of.OFPP_FLOOD, event)
             else:
@@ -92,7 +94,7 @@ class ProtoRouter(object):
             else:
                 return
         else:
-            log_color(RED, f"NO MATCH: {ip_pkt.srcip} no pertenece a {PRIVATE_SUBNET}/{PRIVATE_MASK}")
+            pass
 
 def launch():
     def start_switch(event):

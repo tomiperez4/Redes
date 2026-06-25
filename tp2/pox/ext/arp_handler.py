@@ -18,13 +18,17 @@ class ArpHandler(object):
         eth = event.parsed
         arp_pkt = eth.payload
 
-        # Aprender la MAC del que pregunta
+        # Aprender la MAC del que envía el paquete
         self.arp_table[arp_pkt.protosrc] = arp_pkt.hwsrc
-        log_color(CYAN, f"ARP aprendido: {arp_pkt.protosrc} -> {arp_pkt.hwsrc}")
+        if arp_pkt.opcode == arp.REQUEST:
+            log_color(CYAN, f"Se aprendió MAC de {arp_pkt.protosrc} -> {arp_pkt.hwsrc} (recibí REQUEST: ¿quién tiene {arp_pkt.protodst}?)")
+        else:
+            log_color(CYAN, f"Se aprendió MAC de {arp_pkt.protosrc} -> {arp_pkt.hwsrc} (recibí REPLY)" )
 
         if arp_pkt.opcode == arp.REQUEST:
             our_mac = self.our_addresses.get(arp_pkt.protodst)
             if our_mac:
+                log_color(CYAN, f"ARP Request recibido: ¿quién tiene {arp_pkt.protodst}? → preguntado por {arp_pkt.protosrc}")
                 self.send_reply(event, arp_pkt, our_mac)
             else:
                 log_color(YELLOW, f"ARP Request para {arp_pkt.protodst}, no es nuestro")
@@ -42,6 +46,7 @@ class ArpHandler(object):
     def resolve_or_queue(self, ip_target, src_ip, src_mac, out_port, event):
         """Si no se conoce la MAC correspondiente a ip_target, se encola el paquete y manda un ARP Request (una sola vez por IP)"""
         if ip_target not in self.pending:
+            log_color(YELLOW, f"Mandando ARP Request...")
             self.pending[ip_target] = []
             self.send_request(ip_target, src_ip, src_mac, out_port)
         self.pending[ip_target].append(event)
