@@ -3,22 +3,22 @@ from pox.lib.addresses import EthAddr
 from pox.lib.packet.ethernet import ethernet
 from pox.lib.packet.ethernet import ETHER_BROADCAST
 from pox.lib.packet.arp import arp
-from tp2.logger import *
+from ext.logger import *
 
 class ArpHandler(object):
-
     def __init__(self, connection, our_addresses):
         self.connection = connection
-        self.our_addresses = our_addresses  # {IPAddr: EthAddr} — IPs que el router responde
+        self.our_addresses = our_addresses  # {IPAddr: EthAddr} (IPs que el router responde)
         self.arp_table = {}                 # IPAddr -> EthAddr
         self.pending = {}                   # IPAddr -> [event, ...]
-        self.on_resolved = None             # callback(event) invocado por cada pendiente al resolver
+        self.on_resolved = None             # callback(event) invocado por cada pendiente
 
     def handle(self, event):
+        """Procesa un paquete ARP: aprende MACs, responde requests y procesa replies"""
         eth = event.parsed
         arp_pkt = eth.payload
 
-        # Aprender la MAC del que pregunta (siempre)
+        # Aprender la MAC del que pregunta
         self.arp_table[arp_pkt.protosrc] = arp_pkt.hwsrc
         log_color(CYAN, f"ARP aprendido: {arp_pkt.protosrc} -> {arp_pkt.hwsrc}")
 
@@ -30,7 +30,7 @@ class ArpHandler(object):
                 log_color(YELLOW, f"ARP Request para {arp_pkt.protodst}, no es nuestro")
 
         elif arp_pkt.opcode == arp.REPLY:
-            # Alguien respondió nuestro ARP Request — procesar pendientes
+            # Alguien respondió nuestro ARP Request, entonces procesamos pendientes
             ip = arp_pkt.protosrc
             if ip in self.pending:
                 log_color(GREEN, f"ARP resuelto {ip} -> {arp_pkt.hwsrc}, procesando pendientes")
@@ -40,7 +40,7 @@ class ArpHandler(object):
                         self.on_resolved(pending_event)
 
     def resolve_or_queue(self, ip_target, src_ip, src_mac, out_port, event):
-        """Si ip_target no está resuelta, la encola y manda un ARP Request (una sola vez por IP)."""
+        """Si no se conoce la MAC correspondiente a ip_target, se encola el paquete y manda un ARP Request (una sola vez por IP)"""
         if ip_target not in self.pending:
             self.pending[ip_target] = []
             self.send_request(ip_target, src_ip, src_mac, out_port)

@@ -2,11 +2,11 @@ from pox.core import core                       # Main POX object
 import pox.openflow.libopenflow_01 as of        # OpenFlow 1.0 library
 from pox.lib.packet.ethernet import ethernet
 from pox.lib.packet.ipv4 import ipv4
-from tp2.logger import log_color, log, RED, GREEN, YELLOW, CYAN
-from tp2.config import *
-from tp2.arp_handler import ArpHandler
-from tp2.nat_manager import NatManager
-from tp2 import flow_manager
+from ext.logger import log_color, log, RED, GREEN, YELLOW, CYAN
+from ext.config import *
+from ext.arp_handler import ArpHandler
+from ext.nat_manager import NatManager
+from ext import flow_manager
 
 
 class ProtoRouter(object):
@@ -19,8 +19,9 @@ class ProtoRouter(object):
         connection.addListeners(self)
 
     def _handle_PacketIn(self, event):
+        """Recibe paquetes del switch y los deriva a ARP o IP según corresponda"""
         if not event.parsed.parsed:
-            log.warning("[DROP] PacketIn con trama no reconocida. POX no pudo decodificar el paquete.")
+            log.warning("[DROP] PacketIn con paquete no reconocido. POX no pudo decodificarlo.");
             return
         if event.parsed.type == ethernet.ARP_TYPE:
             self.arp.handle(event)
@@ -31,9 +32,11 @@ class ProtoRouter(object):
 
 
     def _handle_FlowRemoved(self, event):
+        """Libera recursos de NAT cuando una regla expira"""
         self.nat.release_port_from_flow(event.ofp.match)
 
     def handle_ip(self, event):
+        """Procesa paquetes ipv4: resuelve MAC, aplica NAT e instala reglas"""
         packet = event.parsed
         ip_pkt = packet.payload
         in_port = event.port
@@ -92,7 +95,6 @@ class ProtoRouter(object):
             log_color(RED, f"NO MATCH: {ip_pkt.srcip} no pertenece a {PRIVATE_SUBNET}/{PRIVATE_MASK}")
 
 def launch():
-
     def start_switch(event):
         log_color(YELLOW, f"Iniciando ProtoRouter para Switch {event.connection.dpid}")
         ProtoRouter(event.connection)

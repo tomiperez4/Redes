@@ -1,5 +1,5 @@
-from tp2.logger import log_color, log, YELLOW
-from tp2.config import MIN_PORT, MAX_PORT, PRIVATE_SUBNET, PRIVATE_MASK
+from ext.logger import log_color, log, YELLOW
+from ext.config import MIN_PORT, MAX_PORT, PRIVATE_SUBNET, PRIVATE_MASK
 from pox.lib.packet.ipv4 import ipv4
 
 class NatManager(object):
@@ -8,6 +8,7 @@ class NatManager(object):
         self.used_ports = set()
 
     def get_or_create_public_port(self, nw_proto, private_ip, private_port):
+        """Asigna o reutiliza un puerto público para cierto paquete"""
         key = (nw_proto, private_ip, private_port)
 
         if key in self.nat_table:
@@ -32,6 +33,7 @@ class NatManager(object):
         return port
 
     def release_port_from_flow(self, match):
+        """Libera el puerto público cuando expira la regla OpenFlow."""
         nw_proto = match.nw_proto
         if match.dl_type != 0x800 or nw_proto not in (ipv4.TCP_PROTOCOL, ipv4.UDP_PROTOCOL):
             return

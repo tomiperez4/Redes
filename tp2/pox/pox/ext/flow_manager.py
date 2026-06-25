@@ -1,5 +1,5 @@
 import pox.openflow.libopenflow_01 as of
-from tp2.config import NAT_TIMEOUT, PUBLIC_MAC, PUBLIC_IP, PRIVATE_MAC, PUBLIC_PORT
+from ext.config import NAT_TIMEOUT, PUBLIC_MAC, PUBLIC_IP, PRIVATE_MAC, PUBLIC_PORT
 
 def install_flow():
     fm = of.ofp_flow_mod()
@@ -8,6 +8,7 @@ def install_flow():
     return fm
 
 def set_outbound_match(fm, ip_pkt, nw_proto, private_port, transport_pkt, in_port):
+    """Configura el match saliente"""
     fm.match.dl_type = 0x800
     fm.match.nw_src = ip_pkt.srcip
     fm.match.nw_dst = ip_pkt.dstip
@@ -17,6 +18,7 @@ def set_outbound_match(fm, ip_pkt, nw_proto, private_port, transport_pkt, in_por
     fm.match.in_port = in_port
 
 def set_inbound_match(fm, ip_pkt, nw_proto, transport_pkt, public_port):
+    """Configura el match entrante"""
     fm.match.dl_type = 0x800
     fm.match.nw_src = ip_pkt.dstip
     fm.match.nw_dst = PUBLIC_IP
@@ -26,6 +28,7 @@ def set_inbound_match(fm, ip_pkt, nw_proto, transport_pkt, public_port):
     fm.match.in_port = PUBLIC_PORT
 
 def set_outbound_actions(fm, dst_mac, public_port):
+    """Configura acciones para flujo saliente"""
     fm.actions.append(of.ofp_action_dl_addr.set_src(PUBLIC_MAC))
     fm.actions.append(of.ofp_action_dl_addr.set_dst(dst_mac))
     fm.actions.append(of.ofp_action_nw_addr.set_src(PUBLIC_IP))
@@ -33,6 +36,7 @@ def set_outbound_actions(fm, dst_mac, public_port):
     fm.actions.append(of.ofp_action_output(port=PUBLIC_PORT))
 
 def set_inbound_actions(fm, src_mac, src_ip, private_port, in_port):
+    """Configura acciones para flujo entrante"""
     fm.actions.append(of.ofp_action_dl_addr.set_src(PRIVATE_MAC))
     fm.actions.append(of.ofp_action_dl_addr.set_dst(src_mac))
     fm.actions.append(of.ofp_action_nw_addr.set_dst(src_ip))
@@ -40,6 +44,7 @@ def set_inbound_actions(fm, src_mac, src_ip, private_port, in_port):
     fm.actions.append(of.ofp_action_output(port=in_port))
 
 def setup_nat_flows(connection, ip_pkt, nw_proto, private_port, transport_pkt, in_port, dst_mac, public_port, packet):
+    """Instala regla saliente y entrante por conexión"""
     fm = install_flow()
     set_outbound_match(fm, ip_pkt, nw_proto, private_port, transport_pkt, in_port)
     set_outbound_actions(fm, dst_mac, public_port)
